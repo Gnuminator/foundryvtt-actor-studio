@@ -14,6 +14,7 @@ import { init, ready } from '~/src/hooks/init.js';
 import { captureAdvancement } from '~/src/hooks/captureAdvancement.js';
 import { renderAdvancementManager } from '~/src/hooks/advancementManager.js';
 import { renderCompendium } from '~/src/hooks/renderCompendium.js';
+import { recordSubclassOnClassAdvancement } from '~/src/hooks/recordSubclassAdvancement.js';
 import { renderASButtonInCreateActorApplication, renderActorStudioSidebarButton, cleanupAllEventHandlers, cleanupEventHandlers } from '~/src/hooks/actorStudioStartButtons.js';
 import { openActorStudio } from '~/src/hooks/actorStudioStartButtons.js';
 
@@ -145,6 +146,11 @@ Hooks.once("membershipReady", (app, html, data) => {
   }
 });
 
+
+//- record a Studio-added subclass on the class's Subclass advancement (dnd5e 4+)
+Hooks.on('createItem', (item, options, userId) => {
+  recordSubclassOnClassAdvancement(item, options, userId);
+});
 
 Hooks.on('renderAdvancementManager', async (app, html, data) => {
   renderAdvancementManager(app, html, data);
