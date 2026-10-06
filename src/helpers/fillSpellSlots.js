@@ -1,5 +1,10 @@
 /**
- * Fills a freshly built character's spell slots (and pact slots) to their maximum.
+ * Fills a character's spell slots (and pact slots) to their maximum. aitool fix: called when Actor Studio
+ * finishes creating a hero (WorkflowStateMachine) and when it finishes levelling one up, one or many levels and
+ * multiclass included (LevelUpStateMachine). Every slot level spell1..spell9 and pact ends at value = max.
+ *
+ * dnd5e does not refill slots when the max rises (only a rest does), so a hero levelled from 1 to 5 would
+ * otherwise keep its level 1 values (for example 2 of 4) and its new slot levels would stay empty.
  *
  * dnd5e only recovers slots on a rest, so a hero Studio has just built would otherwise start with every
  * slot empty and slot-spending features would refuse until a long rest. This mirrors what dnd5e's own

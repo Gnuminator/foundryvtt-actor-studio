@@ -17,6 +17,7 @@ import { destroyAdvancementManagers } from '~/src/helpers/AdvancementManager';
 import { dropItemRegistry } from '~/src/stores/index';
 import Finity from 'finity';
 import { getSpellLimitsForClassLevel, getSpellDeltaForClassLevel } from '~/src/helpers/spellProgression';
+import { fillSpellSlots } from '~/src/helpers/fillSpellSlots';
 
 // Helper to safely get fromUuidSync
 const fromUuidSync = (uuid) => {
@@ -910,6 +911,11 @@ export function createLevelUpStateMachine() {
             const refreshedActor = actor?.id ? (game.actors?.get(actor.id) || actor) : actor;
             levelUpFSMContext.actor = refreshedActor;
             actorInGame.set(refreshedActor);
+
+            // aitool fix: dnd5e does not refill spell slots when the max rises, so a hero levelled up in Studio
+            // kept its old slot values (and new slot levels stayed empty). Fill every slot level (and pact) to
+            // its max once all levels, multiclass included, have been applied. Same fix as at creation.
+            await fillSpellSlots(refreshedActor);
 
             window.GAS.log.d(`[GAS_CLOSE_TRACE] [${closeTraceId}] LEVELUP_COMPLETED begin`, {
               actorId: refreshedActor?.id || null,
