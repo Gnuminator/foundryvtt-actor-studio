@@ -8,6 +8,7 @@ import { actorInGame, startingWealthChoice } from '~/src/stores/storeDefinitions
 import { handleAdvancementCompletion } from '~/src/lib/workflow.js';
 import { destroyAdvancementManagers } from '~/src/helpers/AdvancementManager';
 import { getSpellLimitsForClassLevel } from '~/src/helpers/spellProgression';
+import { fillSpellSlots } from '~/src/helpers/fillSpellSlots';
 import Finity from 'finity';
 
 function classHasSpellSelectionAtLevel(classIdentifier, level, rulesVersion) {
@@ -625,6 +626,7 @@ export function createWorkflowStateMachine() {
           // correct sheet after character creation on all Foundry versions.
           (async () => {
             const refreshedActor = actor?.id ? (game.actors?.get(actor.id) || actor) : actor;
+            await fillSpellSlots(refreshedActor); // new heroes start with full spell slots
             try {
               const defaultSheetId = resolveDefaultActorSheetId(refreshedActor);
               if (defaultSheetId) {
