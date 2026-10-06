@@ -2,6 +2,20 @@
 A FoundryVTT module for creating Actors. The best character creator for dnd5e. Makes creating and levelling PCs super-easy and fun! 
 Select Spells and Equipment / Gold. Includes an Equipment Shop for spending starting gold.
 
+## Fork notes (AI Tool fork)
+
+This is a fork of [geoidesic/foundryvtt-actor-studio](https://github.com/geoidesic/foundryvtt-actor-studio) by Noel da Costa (MIT licence, see `LICENSE`; all credit for Actor Studio goes to the original author). It exists so the [Foundry AI Tool](https://github.com/Gnuminator/Foundry-VTT-MCP-Ai-Tool) project can fix a few bugs it ran into without waiting on a release. The module id stays `foundryvtt-actor-studio`, so existing worlds keep working. Versions look like `2.10.5-aitool.1`: the upstream release the fork is based on, then our own counter.
+
+Changes on top of upstream 2.10.5 (branch `aitool/fixes`):
+
+- A subclass chosen in Studio is now recorded on the class's Subclass advancement, as dnd5e 6 does.
+- Fixed the jQuery selector error (`Syntax error, unrecognized expression: dnd5e-checkbox[aria-label*="average"`) on advancement dialogs.
+- Fixed the doubled path of `black-parchment.webp` (404).
+- Usage tracking (posts to polaris.aardvark.games) now defaults to off. The option is kept.
+- New heroes start with full spell slots.
+
+How we sync with upstream: see `FORK-SYNC.md`. We do not open issues or pull requests on the upstream repository from this fork.
+
 Join the community on [Discord](https://discord.gg/sQgVnSGRUj).
 
 ## New feature donations
