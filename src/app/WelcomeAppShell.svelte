@@ -60,7 +60,7 @@
         hr
         p.usage-tracking-info
           i.fa-solid.fa-shield-halved.mr-sm(style="color: #416dbe;")
-          | Actor Studio collects only the date, country, and module version when the module is loaded. No personal or identifying information is collected. This helps us improve the module and prioritize language support. (Can be disabled in the module settings.)
+          | If enabled, Actor Studio collects only the date, country, and module version when the module is loaded. No personal or identifying information is collected. This helps us improve the module and prioritize language support. This is off by default in this fork; it can be turned on in the module settings.
         .flexrow.justify-flexrow-vertical.gap-10(data-tooltip="{t('Setting.DontShowWelcome.Hint')}")
           .flex0 
             input(type="checkbox" on:change="{handleChange}" label="{t('Setting.DontShowWelcome.Name')}" bind:checked="{dontShowWelcome}") 

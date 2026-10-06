@@ -119,7 +119,7 @@ function usageTracking() {
     scope: 'user',
     config: true,
     type: Boolean,
-    default: true,
+    default: false,
     onChange: (value) => {
       if (!value) {
         return showSettingsConfirm({
