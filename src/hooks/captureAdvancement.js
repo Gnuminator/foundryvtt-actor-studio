@@ -23,8 +23,11 @@ const FORCE_TAKE_AVERAGE_HP_SELECTOR_CONFIG = {
       'dnd5e-checkbox[id*="useAverage"]',
       'dnd5e-checkbox[data-action*="average"]',
       'dnd5e-checkbox[data-action*="Average"]',
-      'dnd5e-checkbox[aria-label*="average" i]',
-      'dnd5e-checkbox[aria-label*="hit point" i]'
+      'dnd5e-checkbox[aria-label*="average"]',
+      'dnd5e-checkbox[aria-label*="Average"]',
+      'dnd5e-checkbox[aria-label*="hit point"]',
+      'dnd5e-checkbox[aria-label*="Hit Point"]',
+      'dnd5e-checkbox[aria-label*="Hit point"]'
     ],
     rollInputSelectors: [],
     rollButtonSelectors: [
