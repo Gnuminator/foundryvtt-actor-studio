@@ -479,13 +479,34 @@ export function extractItemsFromPacksSync(packs, keys) {
     let packItems = extractMapIteratorObjectProperties(entries, keys);
     
     // Strip source book identifiers from the label (e.g., "(TCR)", "[GMO]", ", Tasha's")
-    const cleanLabel = (labelText) => {
+    // aitool: two steps. Step 2 (the ", Word" suffix) is skipped for items whose cleaned label would
+    // then equal that of another item in the same pack with a different step 1 label, so lineages such
+    // as "Elf, Drow" / "Elf, High" / "Elf, Wood" keep their names instead of all showing as "Elf".
+    const stripTags = (labelText) => {
       if (!labelText) return labelText;
       return labelText
         .replace(/\s*[\(\[]([\w\s]+)[\)\]]/g, '')  // Remove (XXX), [XXX], etc.
-        .replace(/,\s*[A-Z][a-z'.-]+(?:['\-][a-z]+)*/g, '') // Remove ", BookName" pattern
         .trim()
         .replace(/\s+/g, ' ');                       // Normalize whitespace
+    };
+    const stripSuffix = (labelText) => {
+      if (!labelText) return labelText;
+      return labelText
+        .replace(/,\s*[A-Z][a-z'.-]+(?:['\-][a-z]+)*/g, '') // Remove ", BookName" pattern
+        .trim()
+        .replace(/\s+/g, ' ');
+    };
+    const step1Labels = new Map(); // step 2 label -> Set of distinct step 1 labels
+    for (const item of packItems) {
+      const s1 = stripTags(item.label);
+      const s2 = stripSuffix(s1);
+      if (!step1Labels.has(s2)) step1Labels.set(s2, new Set());
+      step1Labels.get(s2).add(s1);
+    }
+    const cleanLabel = (labelText) => {
+      const s1 = stripTags(labelText);
+      const s2 = stripSuffix(s1);
+      return step1Labels.get(s2)?.size > 1 ? s1 : s2;
     };
 
     packItems = packItems.map(item => ({
