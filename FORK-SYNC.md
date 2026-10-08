@@ -14,7 +14,9 @@ Our commits on top of upstream 2.10.5 (one fix each, so a rebase conflict is eas
 6. The Spells tab filtered by the dnd5e registry's class spell lists (`src/stores/spellSelection.js`,
    test `src/tests/test-registry-spell-lists.test.js`; added in 2.10.5-aitool.3)
 7. Pack labels keep ", Lineage" names when stripping the ", Book" suffix would make two items equal (`src/helpers/Utility.js`,
-   test `src/tests/test-pack-label-cleaning.test.js`; added in 2.10.5-aitool.4)
+   test `src/tests/test-pack-label-cleaning.test.js`), and the select option label does not strip such labels again
+   (`src/helpers/selectOptionLabel.js`, `src/components/atoms/select/SelectOptionLabel.svelte`, `iconSelectOption.svelte`,
+   test `src/tests/test-select-option-label.test.js`); added in 2.10.5-aitool.4
 8. Fork version, URLs and README notes (`module.json`, `package.json`, `README.md`)
 9. Rebuilt tracked `dist/style.css`
 

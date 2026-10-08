@@ -513,6 +513,7 @@ export function extractItemsFromPacksSync(packs, keys) {
       ...item,
       label: cleanLabel(item.label),
       compoundLabel: `[${pack.metadata.label}] ${cleanLabel(item.label)}`,
+      labelCleaned: true, // aitool: SelectOptionLabel must not strip ', Lineage' again
       packName: pack.metadata.name,
       packId: pack.metadata.id,
       packLabel: pack.metadata.label,

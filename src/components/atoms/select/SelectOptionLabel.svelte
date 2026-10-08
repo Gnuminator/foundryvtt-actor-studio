@@ -1,20 +1,14 @@
 <script>
+  import { stripSourceLabels } from "~/src/helpers/selectOptionLabel.js";
+
   export let label;
   export let enrichedLabel = undefined;
   export let enableEnrichment = false;
   export let showPackLabel = false;
   export let sourceBook = undefined;
+  export let labelCleaned = false;
 
-  // Strip source book identifiers (e.g., "(TCR)", "[GMO]", "Tasha's") from the label
-  function stripSourceLabels(labelText) {
-    if (!labelText) return '';
-    return labelText
-      .replace(/\s*[\[\(][\w\s]+[\]\)]/g, '') // Remove [XXX] or (XXX) patterns
-      .replace(/\s*,\s*.*/g, '')               // Remove ", subtitle" patterns
-      .trim();
-  }
-
-  const displayLabel = stripSourceLabels(label);
+  const displayLabel = stripSourceLabels(label, labelCleaned);
   $: displaySourceBook = typeof sourceBook === 'string' && sourceBook
     ? sourceBook.split('.')[0].replace(/^Compendium\./, '').replace(/-/g, ' ')
     : '';

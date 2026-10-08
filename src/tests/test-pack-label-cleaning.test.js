@@ -32,6 +32,11 @@ describe('extractItemsFromPacksSync label cleaning', () => {
     expect(labels).toEqual(['Elf, Drow', 'Elf, High', 'Elf, Wood', 'Gnome, Forest', 'Gnome, Rock', 'Human']);
   });
 
+  it('marks its labels as cleaned so the select label does not strip them again', () => {
+    const items = extractItemsFromPacksSync([makePack('species', 'Species', ['Elf, High'])], ['name->label']);
+    expect(items[0].labelCleaned).toBe(true);
+  });
+
   it('also keeps compoundLabel distinct for lineages', () => {
     const items = extractItemsFromPacksSync(
       [makePack('species', 'Species', ['Elf, High', 'Elf, Wood'])],

@@ -37,5 +37,6 @@ div.option(
 		enableEnrichment="{enableEnrichment}"
 		showPackLabel="{showPackLabel}"
 		sourceBook="{option.sourceBook || option.packId}"
+		labelCleaned="{option.labelCleaned === true}"
 	)
 </template>
