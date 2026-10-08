@@ -13,6 +13,7 @@ Changes on top of upstream 2.10.5 (branch `aitool/fixes`):
 - Fixed the doubled path of `black-parchment.webp` (404).
 - Usage tracking (posts to polaris.aardvark.games) now defaults to off. The option is kept.
 - New heroes start with full spell slots.
+- The Spells tab offers only spells on the class's spell list in the dnd5e registry. Before, 2024 spells without class labels showed for every class, and prepared casters (cleric, druid) got all of them.
 
 How we sync with upstream: see `FORK-SYNC.md`. We do not open issues or pull requests on the upstream repository from this fork.
 

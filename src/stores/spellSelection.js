@@ -116,6 +116,46 @@ function spellHasClassAssignment(doc) {
   }
 }
 
+/**
+ * The dnd5e spell list registry (dnd5e 4+), or null. Its class lists are the authority on which
+ * spells a class may pick; the spell documents' own class labels are often empty in 2024 packs.
+ */
+function spellListRegistry() {
+  const reg = globalThis.dnd5e?.registry?.spellLists;
+  return reg?.forType && reg?.forSpell ? reg : null;
+}
+
+/**
+ * The registry's class spell list for each class name, or null for a name it has no list for
+ * (a custom class or custom list name: those keep the label checks).
+ * @param {string[]} classNames
+ * @returns {Map<string, {uuids: Set<string>, identifiers: Set<string>} | null>}
+ */
+export function registryClassLists(classNames) {
+  const reg = spellListRegistry();
+  const lists = new Map();
+  for (const name of classNames) {
+    const list = reg ? reg.forType('class', String(name).toLowerCase()) : null;
+    lists.set(name, list ? { uuids: list.uuids, identifiers: list.identifiers } : null);
+  }
+  return lists;
+}
+
+/**
+ * True when the spell is on the class list: by UUID, or by identifier (the same spell in another pack).
+ * @param {{uuids: Set<string>, identifiers: Set<string>}} list
+ * @param {{uuid?: string, system?: {identifier?: string}}} doc
+ */
+export function onClassList(list, doc) {
+  return list.uuids.has(doc.uuid) || (!!doc.system?.identifier && list.identifiers.has(doc.system.identifier));
+}
+
+/** True when no registered spell list names the spell (homebrew the registry does not know). */
+function onNoSpellList(doc) {
+  const reg = spellListRegistry();
+  return !reg || reg.forSpell(doc.uuid).size === 0;
+}
+
 function isCustomSpellListFilteringEnabled() {
   try {
     return game?.settings?.get(MODULE_ID, 'enableCustomSpellListFiltering') !== false;
@@ -1070,6 +1110,11 @@ export async function loadAvailableSpells(characterClassName = null) {
           
           // Support for multiple spell lists (custom classes with array of spell lists)
           const classNamesToCheck = Array.isArray(characterClassName) ? characterClassName : [characterClassName];
+          // aitool: the dnd5e registry's class spell lists decide for the classes they cover.
+          const classLists = registryClassLists(classNamesToCheck);
+          // A class the registry covers takes only its list: imported or legacy copies of spells
+          // that no list names would otherwise pass as homebrew for every class.
+          const allCovered = classNamesToCheck.every(n => classLists.get(n));
           window.GAS.log.d(`[SPELLS DEBUG] D&D 5e v4+ - Processing pack with class filtering: ${pack.collection}, checking classes:`, classNamesToCheck);
 
           // Load all documents from the pack
@@ -1087,13 +1132,20 @@ export async function loadAvailableSpells(characterClassName = null) {
               let availableToClass = false;
 
               // Custom compendium spells often have no labels.classes / system.classes — include them for any class
-              if (isCustomSpellListFilteringEnabled() && !spellHasClassAssignment(doc)) {
+              // aitool: only for a class the registry has no list for, and when no list names the spell.
+              if (!allCovered && isCustomSpellListFilteringEnabled() && !spellHasClassAssignment(doc) && onNoSpellList(doc)) {
                 availableToClass = true;
               }
 
               // Check each of the character's spell list classes
               for (const className of classNamesToCheck) {
                 if (availableToClass) break; // Already matched (e.g. unrestricted homebrew) or found a match
+
+                const classList = classLists.get(className);
+                if (classList) {
+                  availableToClass = onClassList(classList, doc);
+                  continue;
+                }
 
                 // Check doc.labels.classes (2024 style)
                 if (doc.labels?.classes) {
@@ -1214,6 +1266,7 @@ export async function loadAvailableSpells(characterClassName = null) {
                   type: doc.type,
                   uuid: doc.uuid,
                   system: {
+                    identifier: sys.identifier,
                     level: sys.level,
                     school: sys.school,
                     preparation: prepObj,

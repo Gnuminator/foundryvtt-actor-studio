@@ -11,8 +11,10 @@ Our commits on top of upstream 2.10.5 (one fix each, so a rebase conflict is eas
 3. Usage tracking off by default (`src/settings/index.ts`, `src/app/WelcomeAppShell.svelte`)
 4. Subclass recorded on the class's Subclass advancement (`src/hooks/recordSubclassAdvancement.js`, `src/index.js`)
 5. New and levelled-up heroes start with full spell slots (`src/helpers/fillSpellSlots.js`, `src/helpers/WorkflowStateMachine.js` at creation, `src/helpers/LevelUpStateMachine.js` at level-up, one or many levels and multiclass; added in 2.10.5-aitool.2)
-6. Fork version, URLs and README notes (`module.json`, `package.json`, `README.md`)
-7. Rebuilt tracked `dist/style.css`
+6. The Spells tab filtered by the dnd5e registry's class spell lists (`src/stores/spellSelection.js`,
+   test `src/tests/test-registry-spell-lists.test.js`; added in 2.10.5-aitool.3)
+7. Fork version, URLs and README notes (`module.json`, `package.json`, `README.md`)
+8. Rebuilt tracked `dist/style.css`
 
 When upstream fixes one of these itself, drop our commit during the rebase (`git rebase -i` is not
 available in some of our shells; use `git rebase --onto` or `git cherry-pick` of the commits we keep).
@@ -33,7 +35,7 @@ npm run build                          # vite build, writes dist/
 
 Before `npm run build`, delete every file in `dist/` except the tracked `style.css`, or older hashed chunks end up in
 the copy. Test-kit build folders are kept per version (`2.10.5-aitool.1`, `2.10.5-aitool.2`); never edit an old one.
-Fork counter: `.1` the first fixes, `.2` the level-up spell slot fill. A new fork fix raises it; a new upstream base
+Fork counter: `.1` the first fixes, `.2` the level-up spell slot fill, `.3` the class spell list filter. A new fork fix raises it; a new upstream base
 resets it to 1.
 
 Then:
