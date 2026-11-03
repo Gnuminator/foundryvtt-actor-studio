@@ -1026,6 +1026,8 @@ export const showSpellChoiceSelector = (flow) => {
       return;
     }
 
+    if (document.getElementById('gas-spell-choice-container')) return;
+
     const container = document.createElement('div');
     container.id = 'gas-spell-choice-container';
     document.body.appendChild(container);
@@ -1053,6 +1055,7 @@ export const showSpellChoiceSelector = (flow) => {
 
 export const handleSpellChoiceSelection = async (flow, uuids) => {
   try {
+    // apply() adds to the picks already made on this step, so pass only the new ones.
     await flow.advancement.apply(flow.level, { selected: uuids });
     await flow.render();
   } catch (error) {
