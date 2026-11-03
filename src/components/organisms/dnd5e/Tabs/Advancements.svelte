@@ -145,6 +145,10 @@
   max-height: 30px
 :global(.gas-advancements .step .pill-lg[data-action="browse"]:after)
   content: ">"
+// dnd5e dims an empty pill; the browse pill is the button players need, so keep it fully visible
+:global(.gas-advancements .step .pill-lg.empty[data-action="browse"])
+  opacity: 1
+  font-weight: bold
 
 // Fighting style specific styles
 :global(.gas-advancements form[data-type="ItemChoice"] ol),

@@ -77,6 +77,15 @@ export function registerProgressionSettings() {
     default: false
   });
 
+  game.settings.register(MODULE_ID, 'enableSpellChoiceSelector', {
+    name: 'Enable Spell Choice Selector',
+    hint: 'Replace the default dnd5e compendium browser with a spell selector that uses the spell compendiums set in Actor Studio, for ItemChoice advancements that grant spells (Magic Initiate and similar).',
+    scope: 'world',
+    config: false,
+    type: Boolean,
+    default: true
+  });
+
   game.settings.register(MODULE_ID, 'characterCreationTabOrder', {
     name: game.i18n.localize('GAS.Setting.CharacterCreationTabOrder.Name'),
     hint: game.i18n.localize('GAS.Setting.CharacterCreationTabOrder.Hint'),

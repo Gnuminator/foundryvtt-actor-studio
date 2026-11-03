@@ -17,8 +17,9 @@ Our commits on top of upstream 2.10.5 (one fix each, so a rebase conflict is eas
    test `src/tests/test-pack-label-cleaning.test.js`), and the select option label does not strip such labels again
    (`src/helpers/selectOptionLabel.js`, `src/components/atoms/select/SelectOptionLabel.svelte`, `iconSelectOption.svelte`,
    test `src/tests/test-select-option-label.test.js`); added in 2.10.5-aitool.4
-8. Fork version, URLs and README notes (`module.json`, `package.json`, `README.md`)
-9. Rebuilt tracked `dist/style.css`
+8. Spell picker for spell ItemChoice steps (Magic Initiate and similar): `src/helpers/spellChoice.js`, `src/components/molecules/dnd5e/Spells/SpellChoiceSelector.svelte`, `interceptSpellBrowseButtons` in `src/hooks/captureAdvancement.js`, setting `enableSpellChoiceSelector` (default on), test `src/tests/test-spell-choice.test.js`; added in 2.10.5-aitool.5
+9. Fork version, URLs and README notes (`module.json`, `package.json`, `README.md`)
+10. Rebuilt tracked `dist/style.css`
 
 When upstream fixes one of these itself, drop our commit during the rebase (`git rebase -i` is not
 available in some of our shells; use `git rebase --onto` or `git cherry-pick` of the commits we keep).
@@ -39,7 +40,7 @@ npm run build                          # vite build, writes dist/
 
 Before `npm run build`, delete every file in `dist/` except the tracked `style.css`, or older hashed chunks end up in
 the copy. Test-kit build folders are kept per version (`2.10.5-aitool.1`, `2.10.5-aitool.2`); never edit an old one.
-Fork counter: `.1` the first fixes, `.2` the level-up spell slot fill, `.3` the class spell list filter, `.4` species lineage names. A new fork fix raises it; a new upstream base
+Fork counter: `.1` the first fixes, `.2` the level-up spell slot fill, `.3` the class spell list filter, `.4` species lineage names, `.5` the spell picker. A new fork fix raises it; a new upstream base
 resets it to 1.
 
 Then:

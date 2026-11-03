@@ -2,6 +2,7 @@ import { LOG_PREFIX, MODULE_ID, MODULE_CODE, LOG_PREFIX_COLOR, LOG_STYLES} from 
 import DTPlugin from "~/src/plugins/donation-tracker";
 import { get } from "svelte/store";
 import { tick } from "svelte";
+import { filterSpellChoices } from "~/src/helpers/spellChoice";
 
 /**
  * Converts various collection types into a standard array
@@ -1989,6 +1990,41 @@ export const deleteActorItem = async (actor, itemId) => {
  * @param {Object} val - The value to update the source with
  * @returns {Promise<void>} A promise that resolves when the source is updated
  */
+
+/**
+ * Spells the custom spell picker offers for an ItemChoice advancement flow: the spells in the
+ * configured spell compendiums, narrowed by the advancement's level, spell list and school.
+ * @param {object} flow dnd5e ItemChoiceFlow
+ * @returns {Promise<Array>}
+ */
+export async function getFilteredSpellChoices(flow) {
+  try {
+    const packs = getPacksFromSettings("spells");
+    if (!packs || packs.length === 0) return [];
+
+    const indexKeys = ["_id", "name", "img", "type", "uuid"];
+    const nonIndexKeys = ["system.level", "system.school", "system.identifier"];
+    const items = await extractItemsFromPacksAsync(packs, indexKeys, nonIndexKeys);
+
+    const chosenUuids = Array.from(flow?.selected?.keys?.() ?? []);
+    const chosenKeys = [];
+    for (const uuid of chosenUuids) {
+      const doc = fromUuidSync(uuid);
+      if (doc) chosenKeys.push(doc.system?.identifier || String(doc.name ?? '').toLowerCase());
+    }
+
+    return filterSpellChoices(items, {
+      config: flow?.advancement?.configuration,
+      maxSlot: flow?._maxSpellSlotLevel?.() ?? 9,
+      registry: globalThis.dnd5e?.registry?.spellLists ?? null,
+      chosenUuids,
+      chosenKeys
+    });
+  } catch (error) {
+    window.GAS.log.e('[getFilteredSpellChoices] Error loading spells:', error);
+    return [];
+  }
+}
 
 /**
  * Get filtered feats from configured compendium sources

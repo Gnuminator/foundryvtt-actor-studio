@@ -1,6 +1,8 @@
 import { get } from 'svelte/store';
 import { MODULE_ID } from '~/src/helpers/constants';
-import { safeGetSetting } from '~/src/helpers/Utility';
+import { safeGetSetting, getPacksFromSettings } from '~/src/helpers/Utility';
+import { isSpellChoiceAdvancement } from '~/src/helpers/spellChoice';
+import SpellChoiceSelector from '~/src/components/molecules/dnd5e/Spells/SpellChoiceSelector.svelte';
 import { applyAppTheme, resolveFoundryTheme } from '~/src/helpers/syncAppThemeFromFoundryBody';
 import {  dropItemRegistry, preAdvancementSelections, race, background, characterClass, characterSubClass, newLevelValueForExistingClass } from '~/src/stores/index.js';
 import FeatSelector from '~/src/components/molecules/dnd5e/Feats/FeatSelector.svelte';
@@ -975,6 +977,90 @@ export const handleFeatSelection = async (selectedFeat, currentProcess) => {
   }
 };
 
+// Replace dnd5e's compendium browser on spell ItemChoice steps (Magic Initiate and similar)
+// with a picker that reads the spell packs from Actor Studio's own compendium sources.
+export const interceptSpellBrowseButtons = (element, currentProcess) => {
+  try {
+    if (!element?.length) return;
+    if (!safeGetSetting(MODULE_ID, 'enableSpellChoiceSelector', true)) return;
+
+    if (element[0].gasSpellInterceptHandler) {
+      element[0].removeEventListener('click', element[0].gasSpellInterceptHandler, true);
+    }
+
+    element[0].gasSpellInterceptHandler = (event) => {
+      const target = $(event.target).closest(BROWSE_TARGET_SELECTOR);
+      if (!target.length) return;
+
+      const formElement = target.closest('form')[0];
+      if (!formElement) return;
+
+      const advancementId = formElement.dataset?.id ?? formElement.getAttribute?.('data-id');
+      // dnd5e 6's AdvancementManager has no `flows` map; the visible step holds the flow.
+      let flow = findAdvancementFlow(currentProcess, advancementId);
+      const stepFlow = currentProcess?.app?.step?.flow;
+      if (!flow && stepFlow && (!advancementId || stepFlow.advancement?.id === advancementId)) flow = stepFlow;
+      if (!isSpellChoiceAdvancement(flow?.advancement)) return;
+      // No spell packs configured: leave the system browser alone.
+      if (!getPacksFromSettings('spells').length) return;
+
+      event.preventDefault?.();
+      event.stopImmediatePropagation?.();
+      event.stopPropagation?.();
+
+      showSpellChoiceSelector(flow);
+      return false;
+    };
+
+    element[0].addEventListener('click', element[0].gasSpellInterceptHandler, true);
+  } catch (error) {
+    window.GAS.log.e('[interceptSpellBrowseButtons] Error setting up spell interception:', error);
+  }
+};
+
+export const showSpellChoiceSelector = (flow) => {
+  try {
+    const { current, max } = flow.counts;
+    if (current >= max) {
+      ui.notifications.warn(game.i18n.localize('DND5E.ADVANCEMENT.ItemChoice.Warning.MaxSelected'));
+      return;
+    }
+
+    const container = document.createElement('div');
+    container.id = 'gas-spell-choice-container';
+    document.body.appendChild(container);
+    if (game.version < 13) {
+      applyAppTheme(container, resolveFoundryTheme());
+    }
+
+    const selector = new SpellChoiceSelector({
+      target: container,
+      props: {
+        flow,
+        maxPicks: max - current,
+        onSelect: (uuids) => handleSpellChoiceSelection(flow, uuids),
+        onClose: () => {
+          selector.$destroy();
+          container.remove();
+        }
+      }
+    });
+  } catch (error) {
+    window.GAS.log.e('[showSpellChoiceSelector] Error showing spell selector:', error);
+    ui.notifications.error('Failed to load the spell selector. Please check your compendium sources.');
+  }
+};
+
+export const handleSpellChoiceSelection = async (flow, uuids) => {
+  try {
+    await flow.advancement.apply(flow.level, { selected: uuids });
+    await flow.render();
+  } catch (error) {
+    window.GAS.log.e('[handleSpellChoiceSelection] Error applying spells:', error);
+    ui.notifications.error('Failed to add the selected spells. Please try again.');
+  }
+};
+
 export const captureAdvancement = (initial = false) => {
   window.GAS.log.d('[gas.captureAdvancement] initial', initial)
   const skipDomMove = safeGetSetting(MODULE_ID, 'disableAdvancementCapture', false);
@@ -1020,6 +1106,8 @@ export const captureAdvancement = (initial = false) => {
         // Intercept browse buttons for feat selections
         interceptFeatBrowseButtons(element, currentProcess);
         window.GAS.log.d('[gas.captureAdvancement] interceptFeatBrowseButtons completed');
+
+        interceptSpellBrowseButtons(element, currentProcess);
 
         interceptForcedAverageClicks(element);
 
