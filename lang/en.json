@@ -1,5 +1,15 @@
 {
   "GAS": {
+    "SpellChoiceSelector": {
+      "Title": "Select Spells",
+      "Cantrip": "Cantrip",
+      "Level": "Level",
+      "Loading": "Loading spells...",
+      "NoSpells": "No spells available. Check your compendium sources in settings.",
+      "Search": "Search spells...",
+      "Select": "Add Selected",
+      "Cancel": "Cancel"
+    },
     "Error": {
       "ItemNotFoundInCompendium": "Item not found in compendium",
       "PackIndexNotFound": "The compendium pack from which the character class was imported not found in this world",
