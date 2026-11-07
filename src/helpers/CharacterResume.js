@@ -103,7 +103,14 @@ let closedUnfinished = false;
 /** Hook for gas.close: remember that a window closed with an unfinished build behind it. */
 export function noteStudioClosed() {
   try {
-    if (findResumableActors().length > 0) closedUnfinished = true;
+    const open = findResumableActors();
+    if (open.length > 0) closedUnfinished = true;
+    //- the sheet may render while the Studio window is still in the page (the bar stays hidden then): draw it again
+    setTimeout(() => {
+      for (const actor of open) {
+        try { if (actor.sheet?.rendered) actor.sheet.render(); } catch (e) { /* ignore */ }
+      }
+    }, 800);
   } catch (error) { /* ignore */ }
 }
 
