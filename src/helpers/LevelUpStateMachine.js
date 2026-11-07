@@ -18,6 +18,7 @@ import { dropItemRegistry } from '~/src/stores/index';
 import Finity from 'finity';
 import { getSpellLimitsForClassLevel, getSpellDeltaForClassLevel } from '~/src/helpers/spellProgression';
 import { fillSpellSlots } from '~/src/helpers/fillSpellSlots';
+import { snapshotHitPoints, catchUpHitPoints } from '~/src/helpers/catchUpHitPoints';
 
 // Helper to safely get fromUuidSync
 const fromUuidSync = (uuid) => {
@@ -409,6 +410,7 @@ export const levelUpFSMContext = {
   isProcessing: writable(false),
   actor: undefined,
   lastFailure: null,
+  hitPointsBefore: null,
 
   _getMaxSpellLevelForProgression: function (level, progression, classIdentifier = '') {
     const rulesVersion = window.GAS?.dnd5eRules || '2014';
@@ -719,6 +721,9 @@ export function createLevelUpStateMachine() {
         // Suppress Tidy5e auto-reopen during level up
         suppressTidy5eAutoReopen(true);
 
+        // aitool fix: remember the hit points from before the level changes (see catchUpHitPoints)
+        levelUpFSMContext.hitPointsBefore = snapshotHitPoints(levelUpFSMContext.actor || get(actorInGame));
+
         // Do not clear MODULE_ID.originalSheetClass here.
         // It is captured when opening Actor Studio level-up from the sheet and
         // must remain available until completion / gas.close restore.
@@ -916,6 +921,11 @@ export function createLevelUpStateMachine() {
             // kept its old slot values (and new slot levels stayed empty). Fill every slot level (and pact) to
             // its max once all levels, multiclass included, have been applied. Same fix as at creation.
             await fillSpellSlots(refreshedActor);
+
+            // aitool fix: a Constitution increase raises the maximum for every level but dnd5e adds only the new
+            // level's hit points to the current value; bring a hero that was at full hit points back to full.
+            await catchUpHitPoints(refreshedActor, levelUpFSMContext.hitPointsBefore);
+            levelUpFSMContext.hitPointsBefore = null;
 
             window.GAS.log.d(`[GAS_CLOSE_TRACE] [${closeTraceId}] LEVELUP_COMPLETED begin`, {
               actorId: refreshedActor?.id || null,
