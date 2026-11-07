@@ -4,7 +4,8 @@ import { MODULE_ID } from '~/src/helpers/constants';
 import { delay, prepareItemForDrop, dropItemOnCharacter, safeGetSetting, isAdvancementAutomationEnabled, getAdvancementAutomationConfig } from '~/src/helpers/Utility';
 import { compatibleStartingEquipment } from '~/src/stores/startingEquipment';
 import { goldRoll } from '~/src/stores/storeDefinitions';
-import { preAdvancementSelections, actorInGame } from '~/src/stores/index';
+import { preAdvancementSelections, actorInGame, isLevelUp } from '~/src/stores/index';
+import { clearPendingCreation } from '~/src/helpers/CharacterResume';
 import { getWorkflowFSM, WORKFLOW_EVENTS } from '~/src/helpers/WorkflowStateMachine';
 import { getTestTimeouts } from '~/src/helpers/testTimeouts';
 
@@ -364,6 +365,8 @@ export class AdvancementManager {
     const inGameActor = get(actorInGame);
     const currentActor = inGameActor ? inGameActor : get(this.inProcessStore)?.actor;
     this.inProcessStore.set(false);
+    //- every queued item is done: the character is no longer resumable (no-op without the flag)
+    if (currentActor && !get(isLevelUp)) clearPendingCreation(currentActor);
   }
 
   /**

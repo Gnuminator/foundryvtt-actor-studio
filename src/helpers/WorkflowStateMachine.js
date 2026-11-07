@@ -1,6 +1,7 @@
 import { writable, get } from 'svelte/store';
 import { MODULE_ID } from '~/src/helpers/constants';
 import { safeGetSetting, bringActorStudioToFront, resolveDefaultActorSheetId } from '~/src/helpers/Utility';
+import { clearPendingCreation } from '~/src/helpers/CharacterResume';
 import { activeTab, tabs, readOnlyTabs, getCoreCreationReadOnlyTabs } from '~/src/stores/index';
 import { compatibleStartingEquipment } from '~/src/stores/startingEquipment';
 import { preAdvancementSelections, dropItemRegistry } from '~/src/stores/index';
@@ -334,7 +335,12 @@ export function createWorkflowStateMachine() {
         }
         
         // Process advancement queue asynchronously
-        await dropItemRegistry.advanceQueue(true);
+        const queueFinished = await dropItemRegistry.advanceQueue(true);
+        
+        // The queue ran to its end: the character is not resumable any more
+        if (queueFinished && workflowFSMContext.actor) {
+          await clearPendingCreation(workflowFSMContext.actor);
+        }
         
         // After queue completes, restore the actor's original sheetClass
         try {

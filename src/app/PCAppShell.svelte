@@ -12,12 +12,15 @@
   import { MODULE_ID } from "~/src/helpers/constants";
   import { getWorkflowFSM, resetWorkflowFSM, WORKFLOW_EVENTS } from '~/src/helpers/WorkflowStateMachine';
   import { getLevelUpFSM, levelUpFSMContext, LEVELUP_EVENTS } from '~/src/helpers/LevelUpStateMachine';
+  import { applyResume } from '~/src/helpers/CharacterResume';
+  import { race, subRace, background, isNewMultiClass, preAdvancementSelections, dropItemRegistry, isActorCreated } from '~/src/stores/index';
   import { observeFoundryBodyTheme } from '~/src/helpers/syncAppThemeFromFoundryBody';
 
   export let elementRoot; //- passed in by SvelteApplication
   export let documentStore; //- passed in by DocumentSheet.js where it attaches DocumentShell to the DOM body
   export let document; //- passed in by DocumentSheet.js where it attaches DocumentShell to the DOM body
   export let levelUp = false;
+  export let resume = false; //- reopen an unfinished character (see CharacterResume.js)
 
   //- register hooks
   // console.log('[PCAPP] Registering gas.close hook (once)');
@@ -106,7 +109,8 @@
       const characterCreationTabs = getCharacterCreationTabs();
       tabs.set(characterCreationTabs);
       activeTab.set(characterCreationTabs[0]?.id || 'abilities');
-      getWorkflowFSM()
+      const creationFSM = getWorkflowFSM();
+      if (resume) await startResume(creationFSM);
     }
     
     isLevelUp.set(levelUp);
@@ -131,6 +135,23 @@
   /**
    * Handle workflow state changes and update tabs accordingly
    */
+  //- Reopen an unfinished character: refill the stores from the actor flag, queue what is missing, run the creation FSM
+  async function startResume(fsm) {
+    isLevelUp.set(false);
+    const queued = await applyResume({
+      actor: $documentStore,
+      stores: { race, subRace, background, characterClass, characterSubClass, isLevelUp, isNewMultiClass, preAdvancementSelections, actorInGame, isActorCreated },
+      dropItemRegistry
+    });
+    if (!queued.length) {
+      ui.notifications?.info('Nothing was left to finish on this character.');
+      application?.close?.();
+      return;
+    }
+    fsm.handle(WORKFLOW_EVENTS.START_CHARACTER_CREATION);
+    fsm.handle(WORKFLOW_EVENTS.CHARACTER_CREATED);
+  }
+
   function handleWorkflowStateChange(state) {
     // console.log('[PCAPP] ====== handleWorkflowStateChange CALLED ======');
     // console.log('[PCAPP] New workflow state:', state);

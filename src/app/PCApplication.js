@@ -22,7 +22,7 @@ export default class PCApplication extends SvelteApplication {
    */
   #storeUnsubscribe;
 
-  constructor(object, levelUp = false) {
+  constructor(object, levelUp = false, resume = false) {
     super(object);
 
     // Define document store property
@@ -34,6 +34,7 @@ export default class PCApplication extends SvelteApplication {
     });
     this.reactive.document = object;
     this.levelUp = levelUp
+    this.resume = resume
   }
 
 
@@ -72,7 +73,7 @@ export default class PCApplication extends SvelteApplication {
         class: PCAppShell,
         target: document.body,
         props: function () {
-          return { documentStore: this.#documentStore, document: this.reactive.document, levelUp: this.levelUp  };
+          return { documentStore: this.#documentStore, document: this.reactive.document, levelUp: this.levelUp, resume: this.resume };
         },
       },
     });

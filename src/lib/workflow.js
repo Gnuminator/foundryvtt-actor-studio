@@ -13,6 +13,7 @@ import {
   dropItemOnCharacter,
   safeGetSetting
 } from "~/src/helpers/Utility";
+import { savePendingCreation } from "~/src/helpers/CharacterResume";
 import { destroyAdvancementManagers } from "~/src/helpers/AdvancementManager";
 import { goldRoll } from '../stores/storeDefinitions';
 import { totalGoldFromChoices } from '../stores/goldChoices';
@@ -96,6 +97,32 @@ export async function createActorInGameAndEmbedItems({
   // Set the actor in the workflow FSM context
   workflowFSMContext.actor = createdActor;
 
+  // Remember the picks on the actor so an interrupted build can be resumed (cleared when the queue ends)
+  await savePendingCreation(createdActor, stores);
+
+  queueCreationItems({ createdActor, stores, dropItemRegistry });
+  return createdActor;
+}
+
+/**
+ * Queues the species, background, class and subclass picks for the advancement flow.
+ * @param {Object} params
+ * @param {Object} params.createdActor - The actor in the world
+ * @param {Object} params.stores - Store references
+ * @param {Object} params.dropItemRegistry - Drop item registry for queuing items
+ * @param {Set<string>} [params.skipIds] - Queue ids to leave out (items already on the actor when resuming)
+ */
+export function queueCreationItems({ createdActor, stores, dropItemRegistry, skipIds = new Set() }) {
+  const {
+    race,
+    subRace,
+    background,
+    characterClass,
+    characterSubClass,
+    isLevelUp,
+    preAdvancementSelections
+  } = stores;
+
   const $race = get(race);
   const $subRace = get(subRace);
   const $background = get(background);
@@ -105,7 +132,7 @@ export async function createActorInGameAndEmbedItems({
   const $preAdvancementSelections = get(preAdvancementSelections);
 
   // Add race
-  if ($race && !$isLevelUp) {
+  if ($race && !$isLevelUp && !skipIds.has("race")) {
     dropItemRegistry.add({
       actor: createdActor,
       id: "race",
@@ -121,7 +148,7 @@ export async function createActorInGameAndEmbedItems({
   }
   
   // Add subrace
-  if ($subRace && !$isLevelUp) {
+  if ($subRace && !$isLevelUp && !skipIds.has("subRace")) {
     dropItemRegistry.add({
       actor: createdActor,
       id: "subRace",
@@ -137,7 +164,7 @@ export async function createActorInGameAndEmbedItems({
   }
   
   // Add background
-  if ($background && !$isLevelUp) {
+  if ($background && !$isLevelUp && !skipIds.has("background")) {
     dropItemRegistry.add({
       actor: createdActor,
       id: "background",
@@ -153,7 +180,7 @@ export async function createActorInGameAndEmbedItems({
   }
 
   // Add character class
-  if ($characterClass) {
+  if ($characterClass && !skipIds.has("characterClass")) {
     dropItemRegistry.add({
       actor: createdActor,
       id: "characterClass",
@@ -170,7 +197,7 @@ export async function createActorInGameAndEmbedItems({
   }
 
   // Add character subclass
-  if ($characterSubClass) {
+  if ($characterSubClass && !skipIds.has("characterSubClass")) {
     dropItemRegistry.add({
       actor: createdActor,
       id: "characterSubClass",

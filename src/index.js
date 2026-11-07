@@ -16,6 +16,7 @@ import { renderAdvancementManager } from '~/src/hooks/advancementManager.js';
 import { renderCompendium } from '~/src/hooks/renderCompendium.js';
 import { recordSubclassOnClassAdvancement } from '~/src/hooks/recordSubclassAdvancement.js';
 import { renderASButtonInCreateActorApplication, renderActorStudioSidebarButton, cleanupAllEventHandlers, cleanupEventHandlers } from '~/src/hooks/actorStudioStartButtons.js';
+import { offerResumeOnReady, addResumeBanner } from '~/src/helpers/CharacterResume.js';
 import { openActorStudio } from '~/src/hooks/actorStudioStartButtons.js';
 
 
@@ -100,6 +101,8 @@ Hooks.on("quenchReady", async (quench) => {
 
 Hooks.once("ready", (app, html, data) => {
   ready(app, html, data);
+  //- offer to resume this player's unfinished character after a short delay (sidebar and sheets are drawn by then)
+  setTimeout(() => offerResumeOnReady(), 2500);
   
   // Only send the first usage tracking event (module_loaded or session_start)
   if (window.GASUsageTracker && !window.GASUsageTracker._hasTrackedFirstEvent) {
@@ -217,6 +220,7 @@ Hooks.on('closeApplication', (app) => {
  * Handle rendering the Actor Studio button in the Sidebar Actor Directory
  */
 //- Add Actor Studio button to the Actor Directory in game.version >= 13
+Hooks.on('renderActorSheetV2', (app, html) => addResumeBanner(app, html));
 Hooks.on('activateActorDirectory', async (app) => {
   renderActorStudioSidebarButton(app);
 })
