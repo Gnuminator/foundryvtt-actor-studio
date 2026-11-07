@@ -31,6 +31,14 @@ describe('catchUpHitPoints', () => {
     expect(actor.update).not.toHaveBeenCalled();
   });
 
+  it('fills a hero just created by Studio (0 of 0 before its first level) to full', async () => {
+    const actor = actorWith(12, 12 + 0);
+    actor.system.attributes.hp.value = 10;
+    actor.system.attributes.hp.max = 12;
+    expect(await catchUpHitPoints(actor, { value: 0, max: 0 })).toBe(2);
+    expect(actor.update).toHaveBeenCalledWith({ 'system.attributes.hp.value': 12 });
+  });
+
   it('does nothing without a snapshot', async () => {
     const actor = actorWith(1, 10);
     expect(await catchUpHitPoints(actor, null)).toBe(0);
