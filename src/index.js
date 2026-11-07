@@ -16,7 +16,7 @@ import { renderAdvancementManager } from '~/src/hooks/advancementManager.js';
 import { renderCompendium } from '~/src/hooks/renderCompendium.js';
 import { recordSubclassOnClassAdvancement } from '~/src/hooks/recordSubclassAdvancement.js';
 import { renderASButtonInCreateActorApplication, renderActorStudioSidebarButton, cleanupAllEventHandlers, cleanupEventHandlers } from '~/src/hooks/actorStudioStartButtons.js';
-import { offerResumeOnReady, addResumeBanner } from '~/src/helpers/CharacterResume.js';
+import { offerResumeOnReady, addResumeBanner, noteStudioClosed } from '~/src/helpers/CharacterResume.js';
 import { openActorStudio } from '~/src/hooks/actorStudioStartButtons.js';
 
 
@@ -221,6 +221,7 @@ Hooks.on('closeApplication', (app) => {
  */
 //- Add Actor Studio button to the Actor Directory in game.version >= 13
 Hooks.on('renderActorSheetV2', (app, html) => addResumeBanner(app, html));
+Hooks.on('gas.close', () => noteStudioClosed());
 Hooks.on('activateActorDirectory', async (app) => {
   renderActorStudioSidebarButton(app);
 })

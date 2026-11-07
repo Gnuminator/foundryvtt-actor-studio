@@ -118,3 +118,42 @@ describe('findResumableActors', () => {
     expect(findResumableActors({ id: 'u1' })).toEqual([mine]);
   });
 });
+
+describe('the Resume bar', () => {
+  function fakeSheet(actor, existing = []) {
+    const bars = [...existing];
+    const host = {
+      querySelector: (sel) => (sel === '.gas-resume-banner' ? bars[0] ?? null : null),
+      querySelectorAll: (sel) => (sel === '.gas-resume-banner' ? { forEach: (fn) => bars.splice(0).forEach(fn) } : { forEach: () => {} }),
+      prepend: (el) => bars.push(el)
+    };
+    const root = { querySelector: (sel) => (sel === '.window-content' ? host : null) };
+    return { app: { actor }, root, bars };
+  }
+
+  beforeEach(() => {
+    global.HTMLElement = class {};
+    global.document = {
+      getElementById: () => null,
+      createElement: () => ({ style: {}, append() {}, addEventListener() {}, remove() {} })
+    };
+  });
+
+  it('is not added while Actor Studio is open on the page', async () => {
+    const { addResumeBanner } = await import('~/src/helpers/CharacterResume');
+    global.document.getElementById = (id) => (id === 'foundryvtt-actor-studio-pc-sheet' ? {} : null);
+    const actor = fakeActor({ flag: { picks: { race: 'a' }, userId: 'u1' } });
+    const { app, root, bars } = fakeSheet(actor);
+    addResumeBanner(app, { 0: root, querySelector: root.querySelector });
+    expect(bars.length).toBe(0);
+  });
+
+  it('removes a bar left over after the saved picks are gone', async () => {
+    const { addResumeBanner } = await import('~/src/helpers/CharacterResume');
+    const finished = fakeActor();
+    const stale = { remove: vi.fn() };
+    const { app, root, bars } = fakeSheet(finished, [stale]);
+    addResumeBanner(app, { 0: root, querySelector: root.querySelector });
+    expect(bars.length).toBe(0);
+  });
+});

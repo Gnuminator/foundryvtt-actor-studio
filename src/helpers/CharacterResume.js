@@ -92,6 +92,20 @@ export function findResumableActors(user = game.user) {
 }
 
 const RELOAD_KEY = 'gas-resume-actor-id';
+const STUDIO_ROOT_ID = 'foundryvtt-actor-studio-pc-sheet';
+
+/**
+ * Set when Studio was closed while a build was still unfinished. The closed window's queue loop keeps
+ * polling and would mix with a new queue in this page, so a resume then always reloads the page first.
+ */
+let closedUnfinished = false;
+
+/** Hook for gas.close: remember that a window closed with an unfinished build behind it. */
+export function noteStudioClosed() {
+  try {
+    if (findResumableActors().length > 0) closedUnfinished = true;
+  } catch (error) { /* ignore */ }
+}
 
 /**
  * dnd5e keeps the advancement manager of a closed Studio window registered (hidden, same id as the
@@ -116,7 +130,7 @@ export async function resumeActorStudio(actorId) {
     ui.notifications?.error('Actor Studio is already open. Close it first, then resume the character.');
     return false;
   }
-  if (hasStaleAdvancementApp(actor.id)) {
+  if (closedUnfinished || hasStaleAdvancementApp(actor.id)) {
     //- reload; offerResumeOnReady picks the actor up again straight away
     try { sessionStorage.setItem(RELOAD_KEY, actor.id); } catch (e) { /* ignore */ }
     ui.notifications?.info('Reloading the page to clear the unfinished advancement, then resuming ' + actor.name + '.');
@@ -205,10 +219,16 @@ export async function offerResumeOnReady() {
 export function addResumeBanner(app, html) {
   try {
     const actor = app?.actor ?? app?.document;
-    if (!actor || !getPendingCreation(actor)) return;
-    if (!actor.testUserPermission(game.user, 'OWNER')) return;
     const root = html instanceof HTMLElement ? html : (html?.[0] ?? app?.element);
     const host = root?.querySelector?.('.window-content') ?? root;
+    //- no bar while Studio is building this character, and none once the saved picks are gone
+    const hide = !actor || !getPendingCreation(actor)
+      || !actor.testUserPermission(game.user, 'OWNER')
+      || !!document.getElementById(STUDIO_ROOT_ID);
+    if (hide) {
+      host?.querySelectorAll?.('.gas-resume-banner').forEach((el) => el.remove());
+      return;
+    }
     if (!host || host.querySelector('.gas-resume-banner')) return;
     const bar = document.createElement('div');
     bar.className = 'gas-resume-banner';
@@ -221,8 +241,7 @@ export function addResumeBanner(app, html) {
     button.style.cssText = 'width:auto;flex:none;';
     button.addEventListener('click', async (ev) => {
       ev.preventDefault();
-      resumeActorStudio(actor.id);
-      app.close?.();
+      if (await resumeActorStudio(actor.id)) app.close?.();
     });
     bar.append(text, button);
     host.prepend(bar);
