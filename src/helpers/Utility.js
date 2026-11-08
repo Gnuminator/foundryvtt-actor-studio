@@ -1911,9 +1911,51 @@ export function getTextEditorAPI() {
  * @param {Object} options - Options for enrichment
  * @returns {Promise<string>} The enriched HTML content
  */
+/**
+ * "[[/award 7GP]]" becomes plain "7 GP" (dnd5e renders it as a bare "7 Award" link without
+ * its currency icon in the Studio window). Pure string work, so it is easy to test.
+ * @param {string} html
+ * @returns {string}
+ */
+export function resolveAwardTokens(html) {
+  if (typeof html !== 'string' || !html) return html;
+  return html.replace(/\[\[\/award\s+(\d+)\s*(pp|gp|ep|sp|cp)\s*\]\]/gi, (_, n, unit) => `${n} ${unit.toUpperCase()}`);
+}
+
+/** Plain text version of unresolved "@abilities.wis.mod" and "@prof" tokens (text only, never attributes). */
+export function resolveLooseTextTokens(text, labels = {}) {
+  if (typeof text !== 'string' || !text) return text;
+  const abilityLabel = (key) => String(labels?.[key] || key.toUpperCase());
+  return text
+    .replace(/@abilities\.(str|dex|con|int|wis|cha)\.mod\b/gi, (_, key) => `your ${abilityLabel(key.toLowerCase())} modifier`)
+    .replace(/@prof\b/gi, 'your Proficiency Bonus');
+}
+
+function resolveLooseTokensInHtml(html) {
+  if (typeof html !== 'string' || !html.includes('@') || !document?.createElement) return html;
+  const labels = Object.fromEntries(
+    Object.entries(globalThis.CONFIG?.DND5E?.abilities ?? {}).map(([key, value]) => [
+      key,
+      globalThis.game?.i18n?.localize?.(value?.label ?? value) || key
+    ])
+  );
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = html;
+  const walker = document.createTreeWalker(wrapper, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  let changed = false;
+  for (const node of nodes) {
+    const next = resolveLooseTextTokens(node.nodeValue, labels);
+    if (next !== node.nodeValue) { node.nodeValue = next; changed = true; }
+  }
+  return changed ? wrapper.innerHTML : html;
+}
+
 export async function enrichHTML(content, options = {}) {
   const textEditor = getTextEditorAPI();
-  const enriched = await textEditor.enrichHTML(content, options);
+  const enrichedRaw = await textEditor.enrichHTML(resolveAwardTokens(content), options);
+  const enriched = resolveLooseTokensInHtml(enrichedRaw);
 
   try {
     // Post-process the enriched HTML string to add a tooltip for broken links

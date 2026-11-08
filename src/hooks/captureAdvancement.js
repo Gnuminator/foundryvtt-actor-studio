@@ -144,7 +144,7 @@ const getLevelProgressionForSubtitle = (currentProcess, subtitleText) => {
 const LEVEL_TOKEN_REGEX = /(\bLevel(?:\s|\u00A0|\u202F)*)(\d+)\b/i;
 const LEVEL_PROGRESSION_REGEX = /\bLevel(?:\s|\u00A0|\u202F)*\d+\s*(?:->|→)\s*\d+\b/i;
 
-const normalizeAdvancementSubtitleLevel = (element, currentProcess) => {
+export const normalizeAdvancementSubtitleLevel = (element, currentProcess) => {
   try {
     if (!element?.length) return;
 
@@ -165,6 +165,10 @@ const normalizeAdvancementSubtitleLevel = (element, currentProcess) => {
 
       const shownLevel = Number(levelMatch[2]);
       if (!Number.isFinite(shownLevel)) return;
+
+      // A "from -> to" progression only exists for a level up (target 2 or higher).
+      // dnd5e shows plain "Level 1" for a new hero or a newly added class: leave it alone.
+      if (shownLevel <= 1) return;
 
       const progression = getLevelProgressionForSubtitle(currentProcess, originalText);
       const currentLevel = Number.isFinite(progression?.currentLevel) ? progression.currentLevel : shownLevel;

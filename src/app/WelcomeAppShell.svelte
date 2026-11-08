@@ -22,7 +22,7 @@
   draggable = true;
 
   $: application.reactive.draggable = draggable;
-  $: dontShowWelcome = safeGetSetting(MODULE_ID, "dontShowWelcome", false);
+  $: dontShowWelcome = safeGetSetting(MODULE_ID, "dontShowWelcome", true);
 
   let disconnectFoundryTheme = () => {};
 

@@ -92,8 +92,9 @@ export const init = (app, html, data) => {
 }
 
 export const ready = async (app, html, data) => {
-  // Show welcome by default unless the setting explicitly disables it
-  if (!safeGetSetting(MODULE_ID, 'dontShowWelcome', false)) {
+  // This fork keeps the welcome window off by default (it came back on every join);
+  // a user can switch it on in the module settings.
+  if (!safeGetSetting(MODULE_ID, 'dontShowWelcome', true)) {
     new WelcomeApplication().render(true, { focus: true });
   }
 
