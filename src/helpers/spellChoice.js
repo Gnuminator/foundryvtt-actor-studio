@@ -44,6 +44,10 @@ export function resolveMagicInitiateList(flow, fallbackBackground = null) {
     const actor = feat?.parent ?? flow?.advancement?.item?.actor ?? flow?.actor;
     const source = actor?.items?.get?.(originItemId);
     if (source) return source.type === 'background' ? magicInitiateListForBackground(source.name) : null;
+    // The origin item is not on the actor yet: only Actor Studio's own background counts, and only
+    // when the origin points at it. Any other origin means the feat was chosen freely.
+    const fallbackIds = [fallbackBackground?.id, fallbackBackground?._id].filter(Boolean);
+    return fallbackIds.includes(originItemId) ? magicInitiateListForBackground(fallbackBackground?.name) : null;
   }
   return magicInitiateListForBackground(fallbackBackground?.name);
 }

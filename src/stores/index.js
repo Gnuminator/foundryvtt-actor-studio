@@ -6,6 +6,7 @@ export * from './storeDefinitions.js';
 
 import { advancementQueueStore } from '~/src/stores/advancements';
 import { clearGoldChoices } from '~/src/stores/goldChoices';
+import { resetSpellAbilityCarry } from '~/src/helpers/spellAbilityCarry';
 import { clearEquipmentSelections } from '~/src/stores/equipmentSelections';
 import { clearStartingEquipment } from '~/src/stores/startingEquipment';
 // Import and re-export equipment gold stores
@@ -302,8 +303,10 @@ export function resetStores() {
   // Clear spell selection stores
   try {
     // Import and clear spell selection stores
-    import('~/src/stores/spellSelection').then(({ selectedSpells }) => {
+    import('~/src/stores/spellSelection').then(({ selectedSpells, stopWatchingActorForSpellLimits }) => {
       selectedSpells.set(new Map());
+      stopWatchingActorForSpellLimits?.();
+      resetSpellAbilityCarry();
       window.GAS?.log?.d?.('[resetStores] Cleared selectedSpells store');
     }).catch(error => {
       window.GAS?.log?.w?.('[resetStores] Failed to clear spell selection stores:', error);

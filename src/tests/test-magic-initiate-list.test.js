@@ -60,6 +60,12 @@ describe('Magic Initiate list from the background', () => {
     expect(resolveMagicInitiateList(flow, null)).toBeNull();
   });
 
+  it('ignores the selected background when the origin points at an item that is not the background', () => {
+    const flow = flowFor('Magic Initiate', 'cls9.adv1', {});
+    expect(resolveMagicInitiateList(flow, { id: 'bg1', name: 'Sage' })).toBeNull();
+    expect(resolveMagicInitiateList(flow, { id: 'cls9', name: 'Sage' })).toBe('class:wizard');
+  });
+
   it('ignores other feats and backgrounds without a named list', () => {
     expect(resolveMagicInitiateList(flowFor('Druidic Warrior', 'bg1.a', { bg1: { type: 'background', name: 'Sage' } }))).toBeNull();
     expect(resolveMagicInitiateList(flowFor('Magic Initiate', 'bg1.a', { bg1: { type: 'background', name: 'Soldier' } }))).toBeNull();

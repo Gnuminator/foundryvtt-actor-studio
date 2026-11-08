@@ -1078,7 +1078,7 @@ const carrySpellAbility = (element, currentProcess) => {
   try {
     watchSpellAbility(element?.[0], () => {
       const advancement = currentProcess?.app?.step?.flow?.advancement;
-      return advancement?.item?.uuid ?? advancement?.item?.id ?? advancement?.item?.name ?? null;
+      return advancement?.item?.uuid ?? advancement?.item?.id ?? null;
     });
   } catch (error) {
     window.GAS.log.e('[carrySpellAbility] Error:', error);

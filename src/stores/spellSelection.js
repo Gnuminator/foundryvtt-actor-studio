@@ -1078,17 +1078,27 @@ const fromUuidSync = (uuid) => {
 // The Spells tab can open before the last advancement item (Divine Order) lands on the actor. Watch
 // items and effects of that actor and prepare it again, so effect cantrips reach the limit.
 let spellLimitHookIds = [];
+let spellLimitTimer = null;
+// Called when Actor Studio closes or resets: no hooks or pending refresh may outlive the app.
+export function stopWatchingActorForSpellLimits() {
+  if (typeof Hooks !== 'undefined') {
+    for (const [name, id] of spellLimitHookIds) Hooks.off(name, id);
+  }
+  spellLimitHookIds = [];
+  if (spellLimitTimer) clearTimeout(spellLimitTimer);
+  spellLimitTimer = null;
+}
 function watchActorForSpellLimits(actor) {
   if (typeof Hooks === 'undefined') return;
-  for (const [name, id] of spellLimitHookIds) Hooks.off(name, id);
-  spellLimitHookIds = [];
+  stopWatchingActorForSpellLimits();
   if (!actor) return;
   const refresh = (document) => {
     let owner = document?.parent;
     if (owner?.documentName === 'Item') owner = owner.parent; // an effect on an item of the actor
     if (owner !== actor) return;
     // Let the document finish its own preparation first.
-    setTimeout(() => {
+    if (spellLimitTimer) clearTimeout(spellLimitTimer);
+    spellLimitTimer = setTimeout(() => {
       try { actor.reset?.(); } catch (err) { /* actor already gone */ }
       spellLimitsRefresh.update((n) => n + 1);
     }, 0);
