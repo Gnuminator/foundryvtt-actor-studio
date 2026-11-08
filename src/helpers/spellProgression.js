@@ -167,6 +167,43 @@ function getSpellLimitsFromAdvancements(classItem, level, { classIdentifier, rul
   };
 }
 
+const slugifyIdentifier = (text) => String(text || '')
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '');
+
+/**
+ * Extra cantrips an Active Effect on the actor adds on top of the class advancement.
+ * dnd5e exposes each class ScaleValue as actor.system.scale.<class>.<identifier>.value, and an
+ * effect that changes that path (Thaumaturge: +1 on cantrips-known) shows up there but not in the
+ * class advancement data. The bonus is live value minus what the advancement alone gives at the
+ * class level the actor has now. Any effect that raises cantrips known counts, not one feature.
+ *
+ * @returns {number} 0 when the actor has no such scale value yet (class not on the actor)
+ */
+export function getEffectCantripBonus({ actor, classIdentifier, classItem } = {}) {
+  const identifier = String(classIdentifier || '').toLowerCase();
+  const scaleGroup = actor?.system?.scale?.[identifier];
+  if (!identifier || !scaleGroup) return 0;
+
+  const actorClass = actor?.items?.find?.((item) => item?.type === 'class'
+    && String(item?.system?.identifier || item?.name || '').toLowerCase() === identifier);
+  const classLevel = Number(actorClass?.system?.levels) || 0;
+  if (classLevel <= 0) return 0;
+
+  let bonus = 0;
+  const advancements = advancementEntriesToArray(classItem?.system?.advancement ?? actorClass?.system?.advancement)
+    .filter((adv) => adv?.type === 'ScaleValue' && String(adv?.title || '').toLowerCase().includes('cantrip'));
+  for (const adv of advancements) {
+    const scaleKey = adv?.configuration?.identifier || slugifyIdentifier(adv?.title);
+    const entry = scaleGroup[scaleKey];
+    const live = Number(entry?.value ?? entry?.number ?? entry);
+    const base = getScaleValueAtLevel(adv, classLevel);
+    if (Number.isFinite(live) && Number.isFinite(base) && live > base) bonus += live - base;
+  }
+  return bonus;
+}
+
 export function getSpellLimitsForClassLevel({ classIdentifier, classItem, level, rulesVersion = '2014' }) {
   const fromAdvancements = getSpellLimitsFromAdvancements(classItem, level, { classIdentifier, rulesVersion });
   const fromTable = getSpellsFromTable(classIdentifier, level, rulesVersion);

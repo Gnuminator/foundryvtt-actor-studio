@@ -5,7 +5,7 @@ import { readOnlyTabs, characterClass, characterSubClass, isLevelUp, newLevelVal
 import { determineSpellListClass, parseSpellcastingFromDescription } from '~/src/helpers/LevelUpStateMachine';
 import { collectTcrSpellClassUuids } from '~/src/helpers/tcrSpellClassUuids';
 import DTPlugin from '~/src/plugins/donation-tracker';
-import { getSpellLimitsForClassLevel, getSpellDeltaForClassLevel } from '~/src/helpers/spellProgression';
+import { getSpellLimitsForClassLevel, getSpellDeltaForClassLevel, getEffectCantripBonus } from '~/src/helpers/spellProgression';
 
 // Import spellsKnown data for determining spell limits
 // Safe logging shim to avoid test failures when certain log methods (g/p) are missing
@@ -615,7 +615,7 @@ function parseSpellLimitsFromAdvancement(subclassItem, level) {
 }
 
 // Derived store for spell limits based on character class and level
-export const spellLimits = derived(
+const baseSpellLimits = derived(
   [characterClass, levelUpClassObject, classUuidForLevelUp, isLevelUp, newLevelValueForExistingClass, currentCharacter],
   ([$characterClass, $levelUpClassObject, $classUuidForLevelUp, $isLevelUp, $newLevelValueForExistingClass, $currentCharacter]) => {
     // Calculate the effective character level for spell selection
@@ -847,6 +847,31 @@ export const spellLimits = derived(
       window.GAS.log.d('[SPELLS] Using base class limits (character creation):', limits);
       return limits;
     }
+  }
+);
+
+// Spell limits plus cantrips that Active Effects add on the actor (Divine Order: Thaumaturge and
+// any other effect that raises cantrips known). Only the creation / new class case: when levelling
+// an existing class the limit is a delta, and an effect already on the actor was counted before.
+export const spellLimits = derived(
+  [baseSpellLimits, currentCharacter, characterClass, levelUpClassObject, isLevelUp, newLevelValueForExistingClass],
+  ([$base, $currentCharacter, $characterClass, $levelUpClassObject, $isLevelUp, $newLevelValueForExistingClass]) => {
+    if (!$base || ($isLevelUp && $newLevelValueForExistingClass)) return $base;
+
+    const classItem = ($isLevelUp && $levelUpClassObject) ? $levelUpClassObject : $characterClass;
+    const spellListClass = ($isLevelUp && $levelUpClassObject)
+      ? ($levelUpClassObject.system?.identifier || $levelUpClassObject.name)
+      : determineSpellListClass($currentCharacter);
+    const classIdentifier = spellListClass
+      || classItem?.system?.identifier
+      || classItem?.name;
+    if (typeof classIdentifier !== 'string') return $base;
+
+    const bonus = getEffectCantripBonus({ actor: $currentCharacter, classIdentifier, classItem });
+    if (!bonus) return $base;
+
+    window.GAS.log.d('[spellLimits] Effect cantrip bonus', { classIdentifier, bonus });
+    return { ...$base, cantrips: ($base.cantrips ?? 0) + bonus };
   }
 );
 
