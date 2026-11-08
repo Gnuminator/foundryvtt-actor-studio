@@ -2,7 +2,7 @@ import { get } from 'svelte/store';
 import { MODULE_ID } from '~/src/helpers/constants';
 import { safeGetSetting, getPacksFromSettings } from '~/src/helpers/Utility';
 import { isSpellChoiceAdvancement } from '~/src/helpers/spellChoice';
-import { watchSpellAbility } from '~/src/helpers/spellAbilityCarry';
+import { watchSpellAbility, spellcastingAbilityFrom } from '~/src/helpers/spellAbilityCarry';
 import SpellChoiceSelector from '~/src/components/molecules/dnd5e/Spells/SpellChoiceSelector.svelte';
 import { applyAppTheme, resolveFoundryTheme } from '~/src/helpers/syncAppThemeFromFoundryBody';
 import {  dropItemRegistry, preAdvancementSelections, race, background, characterClass, characterSubClass, newLevelValueForExistingClass } from '~/src/stores/index.js';
@@ -1084,6 +1084,14 @@ const carrySpellAbility = (element, currentProcess) => {
     watchSpellAbility(element?.[0], () => {
       const advancement = currentProcess?.app?.step?.flow?.advancement;
       return advancement?.item?.uuid ?? advancement?.item?.id ?? null;
+    }, () => {
+      const actor = currentProcess?.app?.step?.flow?.advancement?.item?.parent ?? null;
+      const actorItems = actor?.items ? Array.from(actor.items) : [];
+      return spellcastingAbilityFrom([
+        get(characterClass),
+        get(characterSubClass),
+        ...actorItems.filter((item) => item.type === 'class' || item.type === 'subclass')
+      ]);
     });
   } catch (error) {
     window.GAS.log.e('[carrySpellAbility] Error:', error);
