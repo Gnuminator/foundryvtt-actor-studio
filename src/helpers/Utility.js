@@ -1926,9 +1926,10 @@ export function resolveAwardTokens(html) {
 export function resolveLooseTextTokens(text, labels = {}) {
   if (typeof text !== 'string' || !text) return text;
   const abilityLabel = (key) => String(labels?.[key] || key.toUpperCase());
+  // Descriptions already say "your @prof": keep a single "your".
   return text
-    .replace(/@abilities\.(str|dex|con|int|wis|cha)\.mod\b/gi, (_, key) => `your ${abilityLabel(key.toLowerCase())} modifier`)
-    .replace(/@prof\b/gi, 'your Proficiency Bonus');
+    .replace(/(\byour\s+)?@abilities\.(str|dex|con|int|wis|cha)\.mod\b/gi, (_, your, key) => `${your ?? 'your '}${abilityLabel(key.toLowerCase())} modifier`)
+    .replace(/(\byour\s+)?@prof\b/gi, (_, your) => `${your ?? 'your '}Proficiency Bonus`);
 }
 
 function resolveLooseTokensInHtml(html) {
@@ -1936,14 +1937,20 @@ function resolveLooseTokensInHtml(html) {
   const labels = Object.fromEntries(
     Object.entries(globalThis.CONFIG?.DND5E?.abilities ?? {}).map(([key, value]) => [
       key,
-      globalThis.game?.i18n?.localize?.(value?.label ?? value) || key
+      typeof (value?.label ?? value) === 'string'
+        ? (globalThis.game?.i18n?.localize?.(value?.label ?? value) || key)
+        : key
     ])
   );
   const wrapper = document.createElement('div');
   wrapper.innerHTML = html;
   const walker = document.createTreeWalker(wrapper, NodeFilter.SHOW_TEXT);
   const nodes = [];
-  while (walker.nextNode()) nodes.push(walker.currentNode);
+  while (walker.nextNode()) {
+    const tag = walker.currentNode.parentElement?.tagName;
+    if (['SCRIPT', 'STYLE', 'CODE', 'PRE'].includes(tag)) continue;
+    nodes.push(walker.currentNode);
+  }
   let changed = false;
   for (const node of nodes) {
     const next = resolveLooseTextTokens(node.nodeValue, labels);

@@ -46,7 +46,8 @@ describe('loose description tokens', () => {
 
   it('names the ability and the proficiency bonus', () => {
     expect(resolveLooseTextTokens('Uses your @abilities.wis.mod, plus @prof', { wis: 'Wisdom' }))
-      .toBe('Uses your your Wisdom modifier, plus your Proficiency Bonus');
+      .toBe('Uses your Wisdom modifier, plus your Proficiency Bonus');
+    expect(resolveLooseTextTokens('Add your @prof twice', {})).toBe('Add your Proficiency Bonus twice');
   });
 
   it('leaves other text alone', () => {
