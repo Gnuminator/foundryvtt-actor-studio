@@ -50,7 +50,15 @@ export const watchSpellAbility = (root, getKey) => {
   };
 
   if (typeof MutationObserver === 'function') {
-    new MutationObserver(apply).observe(root, { childList: true, subtree: true });
+    const observer = new MutationObserver(() => {
+      // The advancement dialog was closed and its element dropped: stop watching.
+      if (root.isConnected === false) {
+        observer.disconnect();
+        return;
+      }
+      apply();
+    });
+    observer.observe(root, { childList: true, subtree: true });
   }
   apply();
 };

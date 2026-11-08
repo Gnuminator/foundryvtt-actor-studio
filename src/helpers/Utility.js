@@ -2015,12 +2015,6 @@ export async function getFilteredSpellChoices(flow, options = {}) {
     }
 
     const listOverride = resolveMagicInitiateList(flow, options.fallbackBackground ?? null);
-    window.GAS?.log?.d?.('[getFilteredSpellChoices] Magic Initiate list override', {
-      feat: flow?.advancement?.item?.name,
-      origin: flow?.advancement?.item?.flags?.dnd5e?.advancementOrigin,
-      fallbackBackground: options.fallbackBackground?.name,
-      listOverride
-    });
 
     return filterSpellChoices(items, {
       config: flow?.advancement?.configuration,
