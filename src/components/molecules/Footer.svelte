@@ -759,7 +759,7 @@
               ProgressBar(progress="{100}")
               +else()
                 ProgressBar(progress="{progress}")
-                +if("!isEquipmentComplete && $progress > 0")
+                +if("!isEquipmentComplete && $progress > 0 && $progress < 100")
                   p.equipment-hint {t('Footer.EquipmentHint')}
                 +if("isEquipmentComplete")
                   .button-container

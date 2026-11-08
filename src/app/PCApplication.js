@@ -2,10 +2,10 @@ import PCAppShell from './PCAppShell.svelte';
 import { SvelteApplication } from "@typhonjs-fvtt/runtime/svelte/application";
 import { TJSDocument } from "@typhonjs-fvtt/runtime/svelte/store/fvtt/document";
 import { MODULE_ID, MODULE_CODE } from "~/src/helpers/constants"
-import { safeGetSetting, getPhbVersion } from '~/src/helpers/Utility';
+import { safeGetSetting, getPhbVersion, localize } from '~/src/helpers/Utility';
+import { shouldWarnOnEquipmentClose } from '~/src/helpers/equipmentCloseWarning';
 import { activeTab, actorInGame, isAdvancementInProgress, readOnlyTabs } from "~/src/stores/index";
 import { progress } from "~/src/stores/progress";
-import { localize } from "~/src/helpers/Utility";
 import { get } from 'svelte/store';
 import { version } from "../../module.json";
 
@@ -111,9 +111,7 @@ export default class PCApplication extends SvelteApplication {
           this.close();
         }
       } else if (
-        currentTab === 'equipment' &&
-        !get(readOnlyTabs).includes('equipment') &&
-        get(progress) > 0 && get(progress) < 100
+        shouldWarnOnEquipmentClose(currentTab, get(readOnlyTabs), get(progress))
       ) {
         // Equipment picks are only saved at 100% and Confirm: warn before they are dropped
         const confirmed = await Dialog.confirm({
