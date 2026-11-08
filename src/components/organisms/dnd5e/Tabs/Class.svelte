@@ -135,6 +135,9 @@
   };
 
   const handleSelectClass = async (option) => {
+    // The tab re-runs this on every mount with the class that is already chosen. That is not a
+    // change, so it must not wipe the Equipment tab picks (focus, tools, weapons) or the gold roll.
+    const classUnchanged = !!option && option === $characterClass?.uuid;
     // Reset workflow state when class changes
     const fsm = window.GAS?.workflowFSM;
     if (fsm) {
@@ -151,7 +154,7 @@
     richSubClassHTML = "";
 
     // Reset gold roll when changing class
-    goldRoll.set(0);
+    if (!classUnchanged) goldRoll.set(0);
 
     const selectedClass = await fromUuid(option);
     window.GAS.log.d('handleSelectClass', selectedClass);
@@ -165,7 +168,7 @@
       classValue = option;
     }
 
-    clearEquipmentSelections();
+    if (!classUnchanged) clearEquipmentSelections();
 
     await tick();
     subClassesIndex = await getFilteredSubclassIndex();
