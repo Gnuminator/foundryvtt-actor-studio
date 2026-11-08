@@ -20,6 +20,12 @@ describe('getEffectCantripBonus', () => {
     expect(getEffectCantripBonus({ actor: makeActor(4), classIdentifier: 'cleric', classItem })).toBe(1);
   });
 
+  it('reads the effect override when system.scale still shows the class value', () => {
+    const actor = makeActor(3);
+    actor.overrides = { system: { scale: { cleric: { 'cantrips-known': { value: 4 } } } } };
+    expect(getEffectCantripBonus({ actor, classIdentifier: 'cleric', classItem })).toBe(1);
+  });
+
   it('is 0 when the live value equals the class advancement', () => {
     expect(getEffectCantripBonus({ actor: makeActor(3), classIdentifier: 'cleric', classItem })).toBe(0);
   });

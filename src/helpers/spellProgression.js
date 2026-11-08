@@ -197,7 +197,12 @@ export function getEffectCantripBonus({ actor, classIdentifier, classItem } = {}
   for (const adv of advancements) {
     const scaleKey = adv?.configuration?.identifier || slugifyIdentifier(adv?.title);
     const entry = scaleGroup[scaleKey];
-    const live = Number(entry?.value ?? entry?.number ?? entry);
+    // dnd5e prepares the scale value after effects run, so system.scale can read the plain class
+    // value while actor.overrides still holds what the effect set (seen live: scale 3, override 4).
+    const overrideEntry = actor?.overrides?.system?.scale?.[identifier]?.[scaleKey];
+    const liveScale = Number(entry?.value ?? entry?.number ?? entry);
+    const liveOverride = Number(overrideEntry?.value ?? overrideEntry?.number ?? overrideEntry);
+    const live = Math.max(Number.isFinite(liveScale) ? liveScale : -Infinity, Number.isFinite(liveOverride) ? liveOverride : -Infinity);
     const base = getScaleValueAtLevel(adv, classLevel);
     if (Number.isFinite(live) && Number.isFinite(base) && live > base) bonus += live - base;
   }

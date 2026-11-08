@@ -5,6 +5,7 @@ import { readOnlyTabs, characterClass, characterSubClass, isLevelUp, newLevelVal
 import { determineSpellListClass, parseSpellcastingFromDescription } from '~/src/helpers/LevelUpStateMachine';
 import { collectTcrSpellClassUuids } from '~/src/helpers/tcrSpellClassUuids';
 import DTPlugin from '~/src/plugins/donation-tracker';
+import { actorInGame } from '~/src/stores/storeDefinitions';
 import { getSpellLimitsForClassLevel, getSpellDeltaForClassLevel, getEffectCantripBonus } from '~/src/helpers/spellProgression';
 
 // Import spellsKnown data for determining spell limits
@@ -870,8 +871,8 @@ export const spellLimits = derived(
       || classItem?.name;
     if (typeof classIdentifier !== 'string') return $base;
 
-    const bonus = getEffectCantripBonus({ actor: $currentCharacter, classIdentifier, classItem });
-    window.GAS.__dbg = { classIdentifier, bonus, isLevelUp: $isLevelUp, nl: $newLevelValueForExistingClass, hasClassItem: !!classItem, classItemName: classItem?.name, base: $base };
+    // The Spells tab hands us a working-copy document with no items; the real actor carries the effects.
+    const bonus = getEffectCantripBonus({ actor: get(actorInGame) ?? $currentCharacter, classIdentifier, classItem });
     if (!bonus) return $base;
 
     window.GAS.log.d('[spellLimits] Effect cantrip bonus', { classIdentifier, bonus });
@@ -1106,10 +1107,11 @@ export function initializeSpellSelection(actor) {
 
     // Effects from items added a moment ago (Divine Order) only reach system.scale after the actor
     // is prepared again; without this the effect cantrip bonus reads the stale value.
-    try { actor.reset?.(); } catch (err) { window.GAS.log.w?.('[spellLimits] actor.reset failed', err); }
+    const realActor = get(actorInGame) ?? actor;
+    try { realActor.reset?.(); } catch (err) { window.GAS.log.w?.('[spellLimits] actor.reset failed', err); }
     currentCharacter.set(actor);
     spellLimitsRefresh.update((n) => n + 1);
-    watchActorForSpellLimits(actor);
+    watchActorForSpellLimits(realActor);
 
     // Determine character level - check classes or use a default
     const actorData = actor.system || actor.data?.data;
