@@ -567,4 +567,30 @@ describe('forceTakeAverageHitPoints level-up fallback', () => {
     expect(useAverageCheckbox.checked).toBe(true);
     expect(useAverageCheckbox.getAttribute('checked')).toBe('checked');
   });
+
+  it('sends a native change event to the useAverage checkbox (dnd5e 6 ignores jQuery triggers)', async () => {
+    const document = global.document;
+    const advancementRoot = document.createElement('div');
+    const useAverageCheckbox = document.createElement('dnd5e-checkbox');
+    useAverageCheckbox.setAttribute('name', 'useAverage');
+    advancementRoot.appendChild(useAverageCheckbox);
+    window.GAS.dnd5eVersion = 5.3;
+
+    // jQuery's trigger sends no native event; make the mock behave the same.
+    vi.spyOn(JQueryWrapper.prototype, 'trigger').mockImplementation(function () { return this; });
+    const received = [];
+    useAverageCheckbox.addEventListener('change', (event) => received.push(event));
+
+    currentProcessStore.value = {
+      id: 'levelup-hp-native',
+      app: { element: advancementRoot, step: { flow: { advancement: { type: 'HitPoints', title: 'Hit Points' } } } }
+    };
+
+    const module = await import('../hooks/captureAdvancement.js');
+    module.captureAdvancement();
+
+    expect(useAverageCheckbox.checked).toBe(true);
+    expect(received.length).toBeGreaterThan(0);
+    expect(received[0].bubbles).toBe(true);
+  });
 });

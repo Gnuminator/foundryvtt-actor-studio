@@ -416,6 +416,15 @@ const applyForceTakeAverageSelection = (element, selectorConfig) => {
 
         checkboxElement.trigger('input');
         checkboxElement.trigger('change');
+
+        // jQuery trigger only runs jQuery handlers. dnd5e 6 listens for a real DOM change event
+        // on <dnd5e-checkbox name="useAverage"> (HitPointsFlow._handleForm), so send native ones too.
+        const nativeTargets = [rawCheckbox, nestedCheckbox[0]].filter(Boolean);
+        for (const target of nativeTargets) {
+          if (typeof target.dispatchEvent !== 'function') continue;
+          target.dispatchEvent(new Event('input', { bubbles: true }));
+          target.dispatchEvent(new Event('change', { bubbles: true }));
+        }
         didApply = true;
       }
 
