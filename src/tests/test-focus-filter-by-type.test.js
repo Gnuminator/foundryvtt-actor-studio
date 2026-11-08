@@ -24,6 +24,17 @@ describe('filterFocusItemsByType', () => {
     expect(filterFocusItemsByType(items, 'druidic', focusTypes).map((i) => i.label)).toEqual(['Mistletoe']);
   });
 
+  it('reads full compendium uuids as dnd5e stores them and matches the SRD copy by name', () => {
+    const real = { holy: { itemIds: { amulet: 'Compendium.dnd5e.equipment24.Item.phbhsyAmuletworn', emblem: 'Compendium.dnd5e.equipment24.Item.phbhsyEmblemborn' } } };
+    const names = { 'Compendium.dnd5e.equipment24.Item.phbhsyAmuletworn': { name: 'Amulet' }, 'Compendium.dnd5e.equipment24.Item.phbhsyEmblemborn': { name: 'Emblem' } };
+    const list = [
+      { label: 'Amulet', _id: 'phbhsyAmuletworn' },
+      { label: 'Emblem', _id: 'laVqttkGMW4B9654' },
+      { label: 'Rod', _id: 'phbafcRod0000000' }
+    ];
+    expect(filterFocusItemsByType(list, 'holy', real, (uuid) => names[uuid]).map((i) => i.label)).toEqual(['Amulet', 'Emblem']);
+  });
+
   it('returns the list unchanged for an unknown key', () => {
     expect(filterFocusItemsByType(items, 'nope', focusTypes)).toBe(items);
   });
