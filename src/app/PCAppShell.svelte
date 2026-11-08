@@ -144,7 +144,7 @@
       dropItemRegistry
     });
     if (!queued.length) {
-      ui.notifications?.info('Nothing was left to finish on this character.');
+      if (!queued.unresolved?.length) ui.notifications?.info('Nothing was left to finish on this character.');
       application?.close?.();
       return;
     }

@@ -43,14 +43,64 @@ export async function savePendingCreation(actor, stores) {
   }
 }
 
+/** Actor ids whose resume skipped a pick that could not be found: the build is not finished, so the flag stays (L6). */
+const keepFlag = new Set();
+
 export async function clearPendingCreation(actor) {
   try {
+    if (actor?.id && keepFlag.has(actor.id)) return;
     if (actor?.getFlag?.(MODULE_ID, PENDING_FLAG) !== undefined) {
       await actor.unsetFlag(MODULE_ID, PENDING_FLAG);
     }
   } catch (error) {
     window.GAS?.log?.w?.('[RESUME] could not clear pending creation flag', error);
   }
+}
+
+/** True while a dnd5e advancement window is still on the page (it is removed from the DOM when it closes). */
+export function advancementsStillOpen(actorId = null) {
+  try {
+    const els = [...(document.querySelectorAll?.('.application.dnd5e2.advancement.manager') ?? [])];
+    if (!actorId) return els.length > 0;
+    const instances = globalThis.foundry?.applications?.instances;
+    //- a window of another actor does not hold this actor's flag; one we cannot place counts as open
+    return els.some((el) => {
+      const owner = instances?.get?.(el.id)?.actor?.id;
+      return !owner || owner === actorId;
+    });
+  } catch (error) { return false; }
+}
+
+const clearWatchers = new Set();
+
+/**
+ * The queue is empty: clear the flag, but not while advancement windows are still open (with
+ * disableAdvancementCapture the queue runs through without waiting for them, L1). Then wait until
+ * they are gone; if Actor Studio itself is closed first the flag stays, so the build can be resumed.
+ */
+export async function clearPendingCreationWhenIdle(actor, { intervalMs = 1000 } = {}) {
+  if (!actor) return false;
+  if (!advancementsStillOpen(actor.id)) {
+    await clearPendingCreation(actor);
+    return true;
+  }
+  if (!actor.id || clearWatchers.has(actor.id)) return false;
+  clearWatchers.add(actor.id);
+  return new Promise((resolve) => {
+    const timer = setInterval(async () => {
+      try {
+        const studioGone = !document.getElementById(STUDIO_ROOT_ID);
+        if (advancementsStillOpen(actor.id) && !studioGone) return;
+        clearInterval(timer);
+        if (advancementsStillOpen(actor.id)) { resolve(false); return; }
+        await clearPendingCreation(actor);
+        resolve(true);
+      } catch (error) {
+        clearInterval(timer);
+        resolve(false);
+      }
+    }, intervalMs);
+  }).finally(() => clearWatchers.delete(actor.id));
 }
 
 export function getPendingCreation(actor) {
@@ -72,22 +122,38 @@ export function actorHasItemFrom(actor, uuid) {
   });
 }
 
-/** Queue ids whose item is already on the actor (finished before the interruption). */
-export function finishedPickIds(actor, picks) {
+/** An owned item without a source marker (hand-added or migrated) that has the pick's name and type (L2). */
+export function actorHasItemLike(actor, doc) {
+  if (!actor?.items || !doc?.name || !doc?.type) return false;
+  return actor.items.some((item) => item?.name === doc.name && item?.type === doc.type);
+}
+
+/**
+ * Queue ids whose item is already on the actor (finished before the interruption). By source marker;
+ * with the loaded pick documents also by name and type.
+ */
+export function finishedPickIds(actor, picks, docs = {}) {
   const done = new Set();
   for (const [id, uuid] of Object.entries(picks || {})) {
-    if (actorHasItemFrom(actor, uuid)) done.add(id);
+    if (actorHasItemFrom(actor, uuid) || actorHasItemLike(actor, docs[id])) done.add(id);
   }
   return done;
 }
 
-/** Actors the user may resume: their own unfinished builds (a GM sees every unfinished build). */
+/** True when the user holds OWNER in the actor's ownership list (a GM's implicit ownership does not count). */
+function ownsActor(actor, user) {
+  const owner = globalThis.CONST?.DOCUMENT_OWNERSHIP_LEVELS?.OWNER ?? 3;
+  if (actor?.ownership && user?.id) return (actor.ownership[user.id] ?? 0) >= owner;
+  return !!actor?.testUserPermission?.(user, 'OWNER');
+}
+
+/** Actors the user may resume: unfinished builds the user owns (a GM is not counted for other players' builds; the Resume bar still shows a GM any build). */
 export function findResumableActors(user = game.user) {
   return (game.actors?.contents ?? []).filter((actor) => {
     if (actor.type !== 'character') return false;
     const pending = getPendingCreation(actor);
     if (!pending) return false;
-    return actor.testUserPermission(user, 'OWNER');
+    return ownsActor(actor, user);
   });
 }
 
@@ -127,17 +193,22 @@ function hasStaleAdvancementApp(actorId) {
 }
 
 /** Opens Actor Studio on an unfinished actor. */
-export async function resumeActorStudio(actorId) {
+export async function resumeActorStudio(actorId, { afterReload = false } = {}) {
   const actor = game.actors?.get(actorId);
   if (!actor || !getPendingCreation(actor)) {
     ui.notifications?.warn('This character has nothing to resume.');
+    return false;
+  }
+  if (!actor.testUserPermission?.(game.user, 'OWNER')) {
+    ui.notifications?.warn('You do not own this character, so you cannot resume it.');
     return false;
   }
   if (document.querySelector('#foundryvtt-actor-studio-pc-sheet')) {
     ui.notifications?.error('Actor Studio is already open. Close it first, then resume the character.');
     return false;
   }
-  if (closedUnfinished || hasStaleAdvancementApp(actor.id)) {
+  //- afterReload: this page was just reloaded for this resume; reloading again could loop (L3)
+  if (!afterReload && (closedUnfinished || hasStaleAdvancementApp(actor.id))) {
     //- reload; offerResumeOnReady picks the actor up again straight away
     try { sessionStorage.setItem(RELOAD_KEY, actor.id); } catch (e) { /* ignore */ }
     ui.notifications?.info('Reloading the page to clear the unfinished advancement, then resuming ' + actor.name + '.');
@@ -159,18 +230,34 @@ export async function applyResume({ actor, stores, dropItemRegistry }) {
   const pending = getPendingCreation(actor);
   if (!pending) return [];
   const { queueCreationItems } = await import('~/src/lib/workflow');
-  const done = finishedPickIds(actor, pending.picks);
+  const docs = {};
+  const unresolved = [];
+  keepFlag.delete(actor.id);
 
   for (const id of PICK_IDS) {
     const uuid = pending.picks[id];
     const store = stores[id];
     if (!uuid || !store) continue;
+    let doc = null;
     try {
-      const doc = await fromUuid(uuid);
-      if (doc) store.set(doc);
+      doc = await fromUuid(uuid);
     } catch (error) {
       window.GAS?.log?.w?.('[RESUME] could not load pick', id, uuid, error);
     }
+    if (doc) {
+      docs[id] = doc;
+      store.set(doc);
+    } else {
+      unresolved.push(id);
+    }
+  }
+  const done = finishedPickIds(actor, pending.picks, docs);
+  //- an item that is already on the actor needs no document; only a missing one is a problem (L6)
+  const missing = unresolved.filter((id) => !done.has(id));
+  if (missing.length) {
+    if (actor.id) keepFlag.add(actor.id);
+    ui.notifications?.warn('Could not find the saved choice for: ' + missing.join(', ')
+      + '. It was skipped, and this character stays open to resume. Ask the GM to add it by hand.');
   }
 
   stores.actorInGame.set(actor);
@@ -178,13 +265,41 @@ export async function applyResume({ actor, stores, dropItemRegistry }) {
   workflowFSMContext.actor = actor;
   stores.isActorCreated?.set?.(true);
 
-  const left = PICK_IDS.filter((id) => pending.picks[id] && !done.has(id));
+  const left = PICK_IDS.filter((id) => pending.picks[id] && !done.has(id) && !missing.includes(id));
   if (left.length === 0) {
     await clearPendingCreation(actor);
-    return [];
+    return Object.assign([], { unresolved: missing });
   }
-  queueCreationItems({ createdActor: actor, stores, dropItemRegistry, skipIds: done });
-  return left;
+  //- do not queue what cannot be found: skip it like a finished item
+  queueCreationItems({ createdActor: actor, stores, dropItemRegistry, skipIds: new Set([...done, ...missing]) });
+  return Object.assign(left, { unresolved: missing });
+}
+
+const OFFER_FLAG = 'resumeOffer';
+const OFFER_WINDOW_MS = 5000;
+const OFFER_SETTLE_MS = 800;
+
+/**
+ * The same user may be logged in from two browsers; only one of them shows the dialog (L4). Each writes
+ * a claim with its own session id; after a short wait the browser whose id is in the flag shows it.
+ */
+export async function claimOffer(actor, { settleMs = OFFER_SETTLE_MS } = {}) {
+  try {
+    const user = game.user;
+    const sid = game.sessionId ?? null;
+    if (!user?.getFlag || !user?.setFlag || !sid) return true;
+    const now = Date.now();
+    const existing = user.getFlag(MODULE_ID, OFFER_FLAG);
+    if (existing && existing.actorId === actor.id && existing.sessionId !== sid && now - existing.at < OFFER_WINDOW_MS) {
+      return false;
+    }
+    await user.setFlag(MODULE_ID, OFFER_FLAG, { actorId: actor.id, sessionId: sid, at: now });
+    await new Promise((resolve) => setTimeout(resolve, settleMs));
+    return user.getFlag(MODULE_ID, OFFER_FLAG)?.sessionId === sid;
+  } catch (error) {
+    window.GAS?.log?.w?.('[RESUME] could not claim the resume offer', error);
+    return true;
+  }
 }
 
 /** Ask the player on login whether to resume each of their unfinished builds. */
@@ -193,7 +308,7 @@ export async function offerResumeOnReady() {
     let forced = null;
     try { forced = sessionStorage.getItem(RELOAD_KEY); sessionStorage.removeItem(RELOAD_KEY); } catch (e) { /* ignore */ }
     if (forced && game.actors?.get(forced) && getPendingCreation(game.actors.get(forced))) {
-      await resumeActorStudio(forced);
+      await resumeActorStudio(forced, { afterReload: true });
       return;
     }
     const mine = findResumableActors().filter((actor) => {
@@ -202,6 +317,7 @@ export async function offerResumeOnReady() {
     });
     if (mine.length === 0) return;
     const actor = mine[0];
+    if (!(await claimOffer(actor))) return;
     const DialogV2 = foundry?.applications?.api?.DialogV2;
     const content = `<p><strong>${foundry.utils.escapeHTML(actor.name)}</strong> was not finished. `
       + 'Resume building this character in Actor Studio? You will answer the unfinished choices again.</p>';
