@@ -124,7 +124,7 @@ $: equipmentByType = configurableSelections.reduce((acc, group) => {
   const type = group.selectedItem.type;
   //- accumulate the items by group type
   // Focus lists differ per key (holy, arcane, druidic), so they are cached per key, not per type
-  const cacheKey = type === 'focus' ? `focus:${group.selectedItem?.key ?? ''}` : type;
+  const cacheKey = equipmentCacheKey(group.selectedItem);
   if (!acc[cacheKey]) {
     const filtered = allEquipmentItemsFromPacks
       .filter(item => {

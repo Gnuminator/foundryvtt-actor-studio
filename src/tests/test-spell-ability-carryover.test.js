@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, vi, expect, it } from 'vitest';
 import {
   applyRememberedSpellAbility,
   recordSpellAbility,
@@ -46,5 +46,25 @@ describe('spell ability carry-over', () => {
     const select = makeSelect('int');
     applyRememberedSpellAbility('feat-1', select);
     expect(select.value).toBe('cha');
+  });
+});
+
+describe('watchSpellAbility observer', () => {
+  it('disconnects once the element is gone', async () => {
+    const { watchSpellAbility } = await import('~/src/helpers/spellAbilityCarry');
+    const disconnect = vi.fn();
+    let callback;
+    globalThis.MutationObserver = class {
+      constructor(cb) { callback = cb; }
+      observe() {}
+      disconnect() { disconnect(); }
+    };
+    const root = { addEventListener() {}, querySelector: () => null, isConnected: true };
+    watchSpellAbility(root, () => 'feat-1');
+    callback();
+    expect(disconnect).not.toHaveBeenCalled();
+    root.isConnected = false;
+    callback();
+    expect(disconnect).toHaveBeenCalledTimes(1);
   });
 });
