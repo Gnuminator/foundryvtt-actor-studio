@@ -4,6 +4,7 @@
  */
 import { get } from "svelte/store";
 import { MODULE_ID } from "~/src/helpers/constants";
+import { equipStartingArmor } from "~/src/helpers/equipStartingArmor";
 import { getWorkflowFSM, workflowFSMContext, WORKFLOW_EVENTS } from "~/src/helpers/WorkflowStateMachine";
 import { getLevelUpFSM, levelUpFSMContext, LEVELUP_EVENTS } from '~/src/helpers/LevelUpStateMachine';
 import {
@@ -459,6 +460,7 @@ export async function handleAddEquipment({
     }
 
     // Process each unique item with its total quantity
+    const armorTaken = { body: false, shield: false };
     for (const [uuid, quantity] of itemCounts.entries()) {
       // Use fromDropData to create a properly formatted item for dropping
       const fromUuid = foundry.utils?.fromUuid || globalThis.fromUuid;
@@ -495,6 +497,7 @@ export async function handleAddEquipment({
           });
         }
         // Handle containers - contents may be a Promise that resolves to a Collection
+        await equipStartingArmor(createdItem, armorTaken);
         await handleContainerContents(item, createdItem, $actorInGame);
         window.GAS.log.d('[WORKFLOW] Successfully created item:', item.name, 'with quantity:', quantity);
       }
