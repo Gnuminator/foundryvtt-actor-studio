@@ -107,7 +107,7 @@ function dontShowWelcome() {
     hint: game.i18n.localize('GAS.Setting.DontShowWelcome.Hint'),
     scope: 'user',
     config: true,
-    default: false,
+    default: true,
     type: Boolean,
   });
 }
