@@ -50,8 +50,9 @@ describe('Debug Shopping Spell Selection Condition', () => {
     });
 
     vi.doMock('svelte/store', () => ({ 
-      writable: mockWritable, 
-      get: mockGet 
+      writable: mockWritable,
+      derived: vi.fn(() => ({ subscribe: vi.fn() })),
+      get: mockGet
     }));
 
     vi.doMock('~/src/stores/storeDefinitions', () => ({ 

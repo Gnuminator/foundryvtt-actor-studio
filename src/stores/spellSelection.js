@@ -5,7 +5,8 @@ import { readOnlyTabs, characterClass, characterSubClass, isLevelUp, newLevelVal
 import { determineSpellListClass, parseSpellcastingFromDescription } from '~/src/helpers/LevelUpStateMachine';
 import { collectTcrSpellClassUuids } from '~/src/helpers/tcrSpellClassUuids';
 import DTPlugin from '~/src/plugins/donation-tracker';
-import { getSpellLimitsForClassLevel, getSpellDeltaForClassLevel } from '~/src/helpers/spellProgression';
+import { actorInGame } from '~/src/stores/storeDefinitions';
+import { getSpellLimitsForClassLevel, getSpellDeltaForClassLevel, getEffectCantripBonus } from '~/src/helpers/spellProgression';
 
 // Import spellsKnown data for determining spell limits
 // Safe logging shim to avoid test failures when certain log methods (g/p) are missing
@@ -615,7 +616,7 @@ function parseSpellLimitsFromAdvancement(subclassItem, level) {
 }
 
 // Derived store for spell limits based on character class and level
-export const spellLimits = derived(
+const baseSpellLimits = derived(
   [characterClass, levelUpClassObject, classUuidForLevelUp, isLevelUp, newLevelValueForExistingClass, currentCharacter],
   ([$characterClass, $levelUpClassObject, $classUuidForLevelUp, $isLevelUp, $newLevelValueForExistingClass, $currentCharacter]) => {
     // Calculate the effective character level for spell selection
@@ -850,6 +851,35 @@ export const spellLimits = derived(
   }
 );
 
+// Spell limits plus cantrips that Active Effects add on the actor (Divine Order: Thaumaturge and
+// any other effect that raises cantrips known). Only the creation / new class case: when levelling
+// an existing class the limit is a delta, and an effect already on the actor was counted before.
+// Bumped when the Spells tab opens: the actor object is the same but its effects (Divine Order) may have landed since.
+export const spellLimitsRefresh = writable(0);
+
+export const spellLimits = derived(
+  [baseSpellLimits, currentCharacter, characterClass, levelUpClassObject, isLevelUp, newLevelValueForExistingClass, spellLimitsRefresh],
+  ([$base, $currentCharacter, $characterClass, $levelUpClassObject, $isLevelUp, $newLevelValueForExistingClass]) => {
+    if (!$base || ($isLevelUp && $newLevelValueForExistingClass)) return $base;
+
+    const classItem = ($isLevelUp && $levelUpClassObject) ? $levelUpClassObject : $characterClass;
+    const spellListClass = ($isLevelUp && $levelUpClassObject)
+      ? ($levelUpClassObject.system?.identifier || $levelUpClassObject.name)
+      : determineSpellListClass($currentCharacter);
+    const classIdentifier = spellListClass
+      || classItem?.system?.identifier
+      || classItem?.name;
+    if (typeof classIdentifier !== 'string') return $base;
+
+    // The Spells tab hands us a working-copy document with no items; the real actor carries the effects.
+    const bonus = getEffectCantripBonus({ actor: get(actorInGame) ?? $currentCharacter, classIdentifier, classItem });
+    if (!bonus) return $base;
+
+    window.GAS.log.d('[spellLimits] Effect cantrip bonus', { classIdentifier, bonus });
+    return { ...$base, cantrips: ($base.cantrips ?? 0) + bonus };
+  }
+);
+
 // Derived store for current spell counts
 export const currentSpellCounts = derived(
   [selectedSpells],
@@ -1045,6 +1075,39 @@ const fromUuidSync = (uuid) => {
   }
 };
 
+// The Spells tab can open before the last advancement item (Divine Order) lands on the actor. Watch
+// items and effects of that actor and prepare it again, so effect cantrips reach the limit.
+let spellLimitHookIds = [];
+let spellLimitTimer = null;
+// Called when Actor Studio closes or resets: no hooks or pending refresh may outlive the app.
+export function stopWatchingActorForSpellLimits() {
+  if (typeof Hooks !== 'undefined') {
+    for (const [name, id] of spellLimitHookIds) Hooks.off(name, id);
+  }
+  spellLimitHookIds = [];
+  if (spellLimitTimer) clearTimeout(spellLimitTimer);
+  spellLimitTimer = null;
+}
+function watchActorForSpellLimits(actor) {
+  if (typeof Hooks === 'undefined') return;
+  stopWatchingActorForSpellLimits();
+  if (!actor) return;
+  const refresh = (document) => {
+    let owner = document?.parent;
+    if (owner?.documentName === 'Item') owner = owner.parent; // an effect on an item of the actor
+    if (owner !== actor) return;
+    // Let the document finish its own preparation first.
+    if (spellLimitTimer) clearTimeout(spellLimitTimer);
+    spellLimitTimer = setTimeout(() => {
+      try { actor.reset?.(); } catch (err) { /* actor already gone */ }
+      spellLimitsRefresh.update((n) => n + 1);
+    }, 0);
+  };
+  for (const name of ['createItem', 'deleteItem', 'createActiveEffect', 'updateActiveEffect', 'deleteActiveEffect']) {
+    spellLimitHookIds.push([name, Hooks.on(name, refresh)]);
+  }
+}
+
 // Function to initialize character data for spell selection
 export function initializeSpellSelection(actor) {
   try {
@@ -1052,7 +1115,13 @@ export function initializeSpellSelection(actor) {
     selectedSpells.set(new Map());
     window.GAS.log.d('[SPELLS DEBUG] Cleared previous spell selections');
 
+    // Effects from items added a moment ago (Divine Order) only reach system.scale after the actor
+    // is prepared again; without this the effect cantrip bonus reads the stale value.
+    const realActor = get(actorInGame) ?? actor;
+    try { realActor.reset?.(); } catch (err) { window.GAS.log.w?.('[spellLimits] actor.reset failed', err); }
     currentCharacter.set(actor);
+    spellLimitsRefresh.update((n) => n + 1);
+    watchActorForSpellLimits(realActor);
 
     // Determine character level - check classes or use a default
     const actorData = actor.system || actor.data?.data;

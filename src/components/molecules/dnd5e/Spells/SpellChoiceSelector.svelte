@@ -2,6 +2,8 @@
   import { onMount } from "svelte";
   import { getFilteredSpellChoices } from "~/src/helpers/Utility.js";
   import { localize as t } from "~/src/helpers/Utility";
+  import { get } from "svelte/store";
+  import { background } from "~/src/stores/index";
 
   export let flow = null;
   export let maxPicks = 1;
@@ -15,7 +17,7 @@
 
   onMount(async () => {
     try {
-      spells = await getFilteredSpellChoices(flow);
+      spells = await getFilteredSpellChoices(flow, { fallbackBackground: get(background) });
     } catch (error) {
       window.GAS.log.e('[SpellChoiceSelector] Error loading spells:', error);
     } finally {

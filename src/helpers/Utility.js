@@ -2,7 +2,7 @@ import { LOG_PREFIX, MODULE_ID, MODULE_CODE, LOG_PREFIX_COLOR, LOG_STYLES} from 
 import DTPlugin from "~/src/plugins/donation-tracker";
 import { get } from "svelte/store";
 import { tick } from "svelte";
-import { filterSpellChoices } from "~/src/helpers/spellChoice";
+import { filterSpellChoices, resolveMagicInitiateList } from "~/src/helpers/spellChoice";
 
 /**
  * Converts various collection types into a standard array
@@ -1995,9 +1995,10 @@ export const deleteActorItem = async (actor, itemId) => {
  * Spells the custom spell picker offers for an ItemChoice advancement flow: the spells in the
  * configured spell compendiums, narrowed by the advancement's level, spell list and school.
  * @param {object} flow dnd5e ItemChoiceFlow
+ * @param {{fallbackBackground?: object|null}} [options] Actor Studio's selected background, used when the feat carries no advancement origin
  * @returns {Promise<Array>}
  */
-export async function getFilteredSpellChoices(flow) {
+export async function getFilteredSpellChoices(flow, options = {}) {
   try {
     const packs = getPacksFromSettings("spells");
     if (!packs || packs.length === 0) return [];
@@ -2013,12 +2014,21 @@ export async function getFilteredSpellChoices(flow) {
       if (doc) chosenKeys.push(doc.system?.identifier || String(doc.name ?? '').toLowerCase());
     }
 
+    const listOverride = resolveMagicInitiateList(flow, options.fallbackBackground ?? null);
+    window.GAS?.log?.d?.('[getFilteredSpellChoices] Magic Initiate list override', {
+      feat: flow?.advancement?.item?.name,
+      origin: flow?.advancement?.item?.flags?.dnd5e?.advancementOrigin,
+      fallbackBackground: options.fallbackBackground?.name,
+      listOverride
+    });
+
     return filterSpellChoices(items, {
       config: flow?.advancement?.configuration,
       maxSlot: flow?._maxSpellSlotLevel?.() ?? 9,
       registry: globalThis.dnd5e?.registry?.spellLists ?? null,
       chosenUuids,
-      chosenKeys
+      chosenKeys,
+      listOverride
     });
   } catch (error) {
     window.GAS.log.e('[getFilteredSpellChoices] Error loading spells:', error);

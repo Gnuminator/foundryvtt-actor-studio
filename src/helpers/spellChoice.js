@@ -4,6 +4,54 @@
  * component so they can be tested without Foundry.
  */
 
+/**
+ * The 2024 backgrounds that grant Magic Initiate with a named spell list (Acolyte: Cleric, Guide:
+ * Druid, Sage: Wizard). The Magic Initiate item in the books is one generic feat that allows all
+ * three lists, so the background is the only place the list is known. Kept books checked on
+ * 2026-11-08: dnd5e origins24 (Acolyte, Sage) and the PHB module (Acolyte, Guide, Sage); no other
+ * background grants Magic Initiate. A background that grants it without a named list is simply
+ * not in this table and keeps all three lists.
+ */
+export const MAGIC_INITIATE_BACKGROUND_LISTS = Object.freeze({
+  acolyte: 'class:cleric',
+  guide: 'class:druid',
+  sage: 'class:wizard'
+});
+
+/** The spell list a background fixes for its Magic Initiate, or null. */
+export function magicInitiateListForBackground(backgroundName) {
+  const key = String(backgroundName ?? '').trim().toLowerCase();
+  return MAGIC_INITIATE_BACKGROUND_LISTS[key] ?? null;
+}
+
+/**
+ * The spell list to force for a Magic Initiate spell step, or null when the feat was chosen freely
+ * (or is not Magic Initiate), so the advancement's own lists apply.
+ * The feat counts as the background's when its advancement origin points at a background item on
+ * the actor; without an origin flag the background in `fallbackBackground` (Actor Studio's own
+ * pick) is used.
+ * @param {object} flow dnd5e ItemChoiceFlow
+ * @param {object|null} [fallbackBackground] the background Actor Studio has selected
+ * @returns {string|null} for example "class:wizard"
+ */
+export function resolveMagicInitiateList(flow, fallbackBackground = null) {
+  const feat = flow?.advancement?.item ?? flow?.item;
+  if (!/^magic initiate/i.test(String(feat?.name ?? ''))) return null;
+
+  const origin = feat?.flags?.dnd5e?.advancementOrigin ?? feat?.getFlag?.('dnd5e', 'advancementOrigin');
+  if (typeof origin === 'string' && origin) {
+    const originItemId = origin.split('.')[0];
+    const actor = feat?.parent ?? flow?.advancement?.item?.actor ?? flow?.actor;
+    const source = actor?.items?.get?.(originItemId);
+    if (source) return source.type === 'background' ? magicInitiateListForBackground(source.name) : null;
+    // The origin item is not on the actor yet: only Actor Studio's own background counts, and only
+    // when the origin points at it. Any other origin means the feat was chosen freely.
+    const fallbackIds = [fallbackBackground?.id, fallbackBackground?._id].filter(Boolean);
+    return fallbackIds.includes(originItemId) ? magicInitiateListForBackground(fallbackBackground?.name) : null;
+  }
+  return magicInitiateListForBackground(fallbackBackground?.name);
+}
+
 /** True for an ItemChoice advancement whose items are spells. */
 export function isSpellChoiceAdvancement(advancement) {
   return advancement?.type === 'ItemChoice' && advancement?.configuration?.type === 'spell';
@@ -74,9 +122,11 @@ const keyOf = (spell) => spell.system?.identifier || String(spell.name ?? '').to
  * @param {object|null} options.registry dnd5e.registry.spellLists
  * @param {Iterable<string>} [options.chosenUuids] spells already picked in this advancement
  * @param {Iterable<string>} [options.chosenKeys]  identifiers or lower-case names of those spells
+ * @param {string|null} [options.listOverride] one spell list ("class:wizard") that replaces the advancement's lists
  */
-export function filterSpellChoices(spells, { config, maxSlot, registry = null, chosenUuids = [], chosenKeys = [] }) {
-  const { minLevel, maxLevel, lists, schools } = readSpellRestriction(config, maxSlot);
+export function filterSpellChoices(spells, { config, maxSlot, registry = null, chosenUuids = [], chosenKeys = [], listOverride = null }) {
+  const { minLevel, maxLevel, lists: configLists, schools } = readSpellRestriction(config, maxSlot);
+  const lists = listOverride ? [listOverride] : configLists;
   const poolUuids = new Set(toArray(config?.pool).map((p) => p?.uuid).filter(Boolean));
   const chosenU = new Set(chosenUuids);
   const chosenK = new Set(chosenKeys);
