@@ -1955,7 +1955,12 @@ function resolveLooseTokensInHtml(html) {
 export async function enrichHTML(content, options = {}) {
   const textEditor = getTextEditorAPI();
   const enrichedRaw = await textEditor.enrichHTML(resolveAwardTokens(content), options);
-  const enriched = resolveLooseTokensInHtml(enrichedRaw);
+  let enriched = enrichedRaw;
+  try {
+    enriched = resolveLooseTokensInHtml(enrichedRaw);
+  } catch (err) {
+    console.warn('enrichHTML token cleanup failed', err);
+  }
 
   try {
     // Post-process the enriched HTML string to add a tooltip for broken links
