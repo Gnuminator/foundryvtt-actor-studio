@@ -2,6 +2,7 @@ import { get } from 'svelte/store';
 import { MODULE_ID } from '~/src/helpers/constants';
 import { safeGetSetting, getPacksFromSettings } from '~/src/helpers/Utility';
 import { isSpellChoiceAdvancement } from '~/src/helpers/spellChoice';
+import { watchSpellAbility } from '~/src/helpers/spellAbilityCarry';
 import SpellChoiceSelector from '~/src/components/molecules/dnd5e/Spells/SpellChoiceSelector.svelte';
 import { applyAppTheme, resolveFoundryTheme } from '~/src/helpers/syncAppThemeFromFoundryBody';
 import {  dropItemRegistry, preAdvancementSelections, race, background, characterClass, characterSubClass, newLevelValueForExistingClass } from '~/src/stores/index.js';
@@ -1073,6 +1074,17 @@ export const handleSpellChoiceSelection = async (flow, uuids) => {
   }
 };
 
+const carrySpellAbility = (element, currentProcess) => {
+  try {
+    watchSpellAbility(element?.[0], () => {
+      const advancement = currentProcess?.app?.step?.flow?.advancement;
+      return advancement?.item?.uuid ?? advancement?.item?.id ?? advancement?.item?.name ?? null;
+    });
+  } catch (error) {
+    window.GAS.log.e('[carrySpellAbility] Error:', error);
+  }
+};
+
 export const captureAdvancement = (initial = false) => {
   window.GAS.log.d('[gas.captureAdvancement] initial', initial)
   const skipDomMove = safeGetSetting(MODULE_ID, 'disableAdvancementCapture', false);
@@ -1124,6 +1136,8 @@ export const captureAdvancement = (initial = false) => {
         interceptForcedAverageClicks(element);
 
         forceTakeAverageHitPoints(element, currentProcess);
+
+        carrySpellAbility(element, currentProcess);
       } else {
         window.GAS.log.w('[gas.captureAdvancement] No element found from getAdvancementElement');
       }
