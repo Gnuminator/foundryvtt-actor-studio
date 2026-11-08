@@ -58,9 +58,16 @@ export async function clearPendingCreation(actor) {
 }
 
 /** True while a dnd5e advancement window is still on the page (it is removed from the DOM when it closes). */
-export function advancementsStillOpen() {
+export function advancementsStillOpen(actorId = null) {
   try {
-    return !!document.querySelector('.application.dnd5e2.advancement.manager');
+    const els = [...(document.querySelectorAll?.('.application.dnd5e2.advancement.manager') ?? [])];
+    if (!actorId) return els.length > 0;
+    const instances = globalThis.foundry?.applications?.instances;
+    //- a window of another actor does not hold this actor's flag; one we cannot place counts as open
+    return els.some((el) => {
+      const owner = instances?.get?.(el.id)?.actor?.id;
+      return !owner || owner === actorId;
+    });
   } catch (error) { return false; }
 }
 
@@ -73,7 +80,7 @@ const clearWatchers = new Set();
  */
 export async function clearPendingCreationWhenIdle(actor, { intervalMs = 1000 } = {}) {
   if (!actor) return false;
-  if (!advancementsStillOpen()) {
+  if (!advancementsStillOpen(actor.id)) {
     await clearPendingCreation(actor);
     return true;
   }
@@ -81,15 +88,19 @@ export async function clearPendingCreationWhenIdle(actor, { intervalMs = 1000 } 
   clearWatchers.add(actor.id);
   return new Promise((resolve) => {
     const timer = setInterval(async () => {
-      const studioGone = !document.getElementById(STUDIO_ROOT_ID);
-      if (advancementsStillOpen() && !studioGone) return;
-      clearInterval(timer);
-      clearWatchers.delete(actor.id);
-      if (advancementsStillOpen()) { resolve(false); return; }
-      await clearPendingCreation(actor);
-      resolve(true);
+      try {
+        const studioGone = !document.getElementById(STUDIO_ROOT_ID);
+        if (advancementsStillOpen(actor.id) && !studioGone) return;
+        clearInterval(timer);
+        if (advancementsStillOpen(actor.id)) { resolve(false); return; }
+        await clearPendingCreation(actor);
+        resolve(true);
+      } catch (error) {
+        clearInterval(timer);
+        resolve(false);
+      }
     }, intervalMs);
-  });
+  }).finally(() => clearWatchers.delete(actor.id));
 }
 
 export function getPendingCreation(actor) {
@@ -136,7 +147,7 @@ function ownsActor(actor, user) {
   return !!actor?.testUserPermission?.(user, 'OWNER');
 }
 
-/** Actors the user may resume: unfinished builds the user owns (a GM is not counted for other players' builds). */
+/** Actors the user may resume: unfinished builds the user owns (a GM is not counted for other players' builds; the Resume bar still shows a GM any build). */
 export function findResumableActors(user = game.user) {
   return (game.actors?.contents ?? []).filter((actor) => {
     if (actor.type !== 'character') return false;
@@ -221,6 +232,7 @@ export async function applyResume({ actor, stores, dropItemRegistry }) {
   const { queueCreationItems } = await import('~/src/lib/workflow');
   const docs = {};
   const unresolved = [];
+  keepFlag.delete(actor.id);
 
   for (const id of PICK_IDS) {
     const uuid = pending.picks[id];
@@ -264,7 +276,7 @@ export async function applyResume({ actor, stores, dropItemRegistry }) {
 }
 
 const OFFER_FLAG = 'resumeOffer';
-const OFFER_WINDOW_MS = 60000;
+const OFFER_WINDOW_MS = 5000;
 const OFFER_SETTLE_MS = 800;
 
 /**
@@ -285,6 +297,7 @@ export async function claimOffer(actor, { settleMs = OFFER_SETTLE_MS } = {}) {
     await new Promise((resolve) => setTimeout(resolve, settleMs));
     return user.getFlag(MODULE_ID, OFFER_FLAG)?.sessionId === sid;
   } catch (error) {
+    window.GAS?.log?.w?.('[RESUME] could not claim the resume offer', error);
     return true;
   }
 }

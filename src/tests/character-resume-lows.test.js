@@ -14,6 +14,9 @@ vi.mock('svelte/store', () => ({
 const queueCreationItems = vi.fn();
 vi.mock('~/src/lib/workflow', () => ({ queueCreationItems }));
 vi.mock('~/src/helpers/WorkflowStateMachine', () => ({ workflowFSMContext: {} }));
+const PCApplication = vi.hoisted(() => vi.fn(function () { this.render = vi.fn(); }));
+vi.mock('~/src/stores/index', () => ({ resetStores: vi.fn() }));
+vi.mock('~/src/app/PCApplication.js', () => ({ default: PCApplication }));
 
 import {
   PENDING_FLAG,
@@ -22,6 +25,8 @@ import {
   findResumableActors,
   applyResume,
   resumeActorStudio,
+  noteStudioClosed,
+  advancementsStillOpen,
   offerResumeOnReady,
   claimOffer
 } from '~/src/helpers/CharacterResume';
@@ -61,7 +66,8 @@ beforeEach(() => {
   global.ui = { notifications: { warn: vi.fn(), info: vi.fn(), error: vi.fn() } };
   global.game = { user: { id: 'u1' }, actors: { contents: [], get: vi.fn() }, sessionId: 's1' };
   global.document = {
-    querySelector: (sel) => (sel.includes('advancement') && advancementOpen ? {} : null),
+    querySelector: () => null,
+    querySelectorAll: () => (advancementOpen ? [{ id: 'w' }] : []),
     getElementById: () => (studioOpen ? {} : null)
   };
   global.fromUuid = vi.fn();
@@ -138,24 +144,39 @@ describe('L3: guards on the forced and normal resume path', () => {
     expect(ui.notifications.warn).toHaveBeenCalled();
   });
 
-  it('after a reload for this resume it does not reload again', async () => {
-    const actor = fakeActor({ flag: { picks: { race: 'r' } } });
+  it('a resume after an unfinished close reloads once; after that reload it does not reload again', async () => {
+    const actor = fakeActor({ flag: { picks: { race: 'r' }, userId: 'u1' }, ownership: { u1: 3 } });
+    global.game.actors.contents = [actor];
     global.game.actors.get.mockReturnValue(actor);
     global.document.getElementById = () => null;
-    global.document.querySelector = () => ({}); // Studio root present -> "already open", returns false before any reload
-    await resumeActorStudio('a1', { afterReload: true });
-    vi.runAllTimers();
+    global.document.querySelector = () => null;
+    noteStudioClosed(); // Studio closed with an unfinished build: closedUnfinished is now set
+    vi.runOnlyPendingTimers();
+    expect(await resumeActorStudio('a1')).toBe(true);
+    vi.advanceTimersByTime(1000);
+    expect(global.window.location.reload).toHaveBeenCalledTimes(1);
+    expect(global.sessionStorage.setItem).toHaveBeenCalledWith('gas-resume-actor-id', 'a1');
+
+    global.window.location.reload.mockClear();
+    PCApplication.mockClear();
+    expect(await resumeActorStudio('a1', { afterReload: true })).toBe(true);
+    vi.advanceTimersByTime(1000);
     expect(global.window.location.reload).not.toHaveBeenCalled();
+    expect(PCApplication).toHaveBeenCalledTimes(1);
   });
 
-  it('offerResumeOnReady passes the forced actor on as afterReload', async () => {
-    const actor = fakeActor({ flag: { picks: { race: 'r' }, userId: 'u1' } });
+  it('offerResumeOnReady takes the forced actor from the session and opens it without a second reload', async () => {
+    const actor = fakeActor({ flag: { picks: { race: 'r' }, userId: 'u1' }, ownership: { u1: 3 } });
     global.game.actors.get.mockReturnValue(actor);
+    global.document.getElementById = () => null;
+    global.document.querySelector = () => null;
     global.sessionStorage.getItem.mockReturnValue('a1');
-    global.document.querySelector = () => ({}); // Studio already open: resume returns before opening
+    PCApplication.mockClear();
     await offerResumeOnReady();
-    expect(global.sessionStorage.removeItem).toHaveBeenCalled();
+    vi.advanceTimersByTime(1000);
+    expect(global.sessionStorage.removeItem).toHaveBeenCalledWith('gas-resume-actor-id');
     expect(global.window.location.reload).not.toHaveBeenCalled();
+    expect(PCApplication).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -204,7 +225,7 @@ describe('L4: one login dialog per user', () => {
   });
 });
 
-describe('L5: the flag is cleared once', () => {
+describe('L5: clearing is idempotent (the duplicate clear in the workflow state machine is gone)', () => {
   it('a second clear after the first is a no-op', async () => {
     const actor = fakeActor({ flag: { picks: { race: 'r' } } });
     await clearPendingCreationWhenIdle(actor);
@@ -238,5 +259,28 @@ describe('L6: an unresolvable pick does not count as queued', () => {
     expect(left.unresolved).toEqual(['race']);
     expect(queueCreationItems).not.toHaveBeenCalled();
     expect(actor.unsetFlag).not.toHaveBeenCalled();
+  });
+});
+
+describe('review fixes', () => {
+  it('M1: a later resume clears the flag once the missing pick is on the actor', async () => {
+    const actor = fakeActor({ id: 'a8', flag: { picks: { race: 'Compendium.x.elf' }, userId: 'u1' } });
+    global.fromUuid.mockResolvedValue(null);
+    await applyResume({ actor, stores: fakeStores(), dropItemRegistry: {} }); // unresolved: flag kept
+    await clearPendingCreationWhenIdle(actor);
+    expect(actor.unsetFlag).not.toHaveBeenCalled();
+    actor.items = { some: (fn) => [{ name: 'Elf', type: 'race', _stats: { compendiumSource: 'Compendium.x.elf' } }].some(fn) };
+    const left = await applyResume({ actor, stores: fakeStores(), dropItemRegistry: {} });
+    expect(left.length).toBe(0);
+    expect(actor.unsetFlag).toHaveBeenCalledTimes(1);
+  });
+
+  it('M3: an advancement window of another actor does not hold the flag of this actor', () => {
+    global.document.querySelectorAll = () => [{ id: 'w1' }];
+    global.foundry = { applications: { instances: new Map([['w1', { actor: { id: 'other' } }]]) } };
+    expect(advancementsStillOpen('a1')).toBe(false);
+    expect(advancementsStillOpen('other')).toBe(true);
+    expect(advancementsStillOpen()).toBe(true);
+    delete global.foundry;
   });
 });
