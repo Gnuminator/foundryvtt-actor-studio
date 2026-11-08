@@ -68,3 +68,33 @@ describe('watchSpellAbility observer', () => {
     expect(disconnect).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('class spellcasting ability fallback', () => {
+  beforeEach(() => resetSpellAbilityCarry());
+
+  it('starts on the fallback when nothing was remembered', () => {
+    const select = makeSelect('int');
+    expect(applyRememberedSpellAbility('feat-1', select, 'wis')).toBe(true);
+    expect(select.value).toBe('wis');
+  });
+
+  it('lets a remembered pick win over the fallback', () => {
+    recordSpellAbility('feat-1', 'cha');
+    const select = makeSelect('int');
+    applyRememberedSpellAbility('feat-1', select, 'wis');
+    expect(select.value).toBe('cha');
+  });
+
+  it('ignores a fallback the select does not offer', () => {
+    const select = makeSelect('int');
+    expect(applyRememberedSpellAbility('feat-1', select, 'str')).toBe(false);
+    expect(select.value).toBe('int');
+  });
+
+  it('reads the first spellcasting ability from class sources', async () => {
+    const { spellcastingAbilityFrom } = await import('~/src/helpers/spellAbilityCarry');
+    expect(spellcastingAbilityFrom([null, { system: {} }, { system: { spellcasting: { ability: 'wis' } } }])).toBe('wis');
+    expect(spellcastingAbilityFrom([])).toBeNull();
+    expect(spellcastingAbilityFrom(undefined)).toBeNull();
+  });
+});

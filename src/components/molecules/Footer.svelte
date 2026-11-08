@@ -759,6 +759,8 @@
               ProgressBar(progress="{100}")
               +else()
                 ProgressBar(progress="{progress}")
+                +if("!isEquipmentComplete && $progress > 0 && $progress < 100")
+                  p.equipment-hint {t('Footer.EquipmentHint')}
                 +if("isEquipmentComplete")
                   .button-container
                     button.mt-xs(
@@ -889,6 +891,11 @@
 </template>
 
 <style lang="sass">
+.equipment-hint
+  margin: 0.25rem 0 0
+  font-size: var(--font-size-12, 0.75rem)
+  line-height: 1.3
+
 .button-container
   button
     white-space: nowrap

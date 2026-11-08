@@ -55,6 +55,8 @@
     "Footer": {
       "AddLevel": "Add Character Level",
       "AddEquipment": "Confirm",
+      "EquipmentHint": "Not done yet: pick every tile, including the dark gold ones at the bottom of each pane and any \"Select focus\" dropdown. At 100% a Confirm button appears.",
+      "EquipmentCloseWarning": "The equipment picks are not confirmed yet. If you close now they will be dropped. Close anyway?",
       "FinalizePurchase": "Finalize Purchase",
       "FinalizeSpells": "Finalize Spells",
       "SkipSpells": "Skip Spells",
