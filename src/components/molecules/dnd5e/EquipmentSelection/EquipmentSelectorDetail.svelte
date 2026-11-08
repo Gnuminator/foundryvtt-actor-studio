@@ -6,6 +6,7 @@ import { dnd5eConfigKeyMatches, localize as t, safeGetSetting, itemHasProperty }
 import IconSelect from "~/src/components/molecules/select/IconSelect.svelte";
 import { extractItemsFromPacksAsync, getPacksFromSettings } from "~/src/helpers/Utility.js";
 import { MODULE_ID } from "~/src/helpers/constants";
+import { filterFocusItemsByType } from "~/src/helpers/focusFilter";
 
 // Types that need additional configuration
 const CONFIGURABLE_TYPES = ['tool', 'weapon', 'armor', 'focus'];
@@ -116,12 +117,16 @@ $: configurableSelections = Object.values($equipmentSelections).filter(group => 
   return [group];
 });
 
+const equipmentCacheKey = (selectedItem) => selectedItem?.type === 'focus' ? `focus:${selectedItem?.key ?? ''}` : selectedItem?.type;
+
 // Filter equipment items by type for each configurable selection
 $: equipmentByType = configurableSelections.reduce((acc, group) => {
   const type = group.selectedItem.type;
   //- accumulate the items by group type
-  if (!acc[type]) {
-    acc[type] = allEquipmentItemsFromPacks
+  // Focus lists differ per key (holy, arcane, druidic), so they are cached per key, not per type
+  const cacheKey = type === 'focus' ? `focus:${group.selectedItem?.key ?? ''}` : type;
+  if (!acc[cacheKey]) {
+    const filtered = allEquipmentItemsFromPacks
       .filter(item => {
         if (type === 'weapon' && group.selectedItem?.key) {
           if (item.type !== type) return false;
@@ -153,6 +158,9 @@ $: equipmentByType = configurableSelections.reduce((acc, group) => {
         return true;
       })
       .sort((a, b) => a.label.localeCompare(showPackLabelInSelect ? b.compoundLabel : b.label));
+    acc[cacheKey] = type === 'focus'
+      ? filterFocusItemsByType(filtered, group.selectedItem?.key)
+      : filtered;
   }
   return acc;
 }, {});
@@ -251,7 +259,7 @@ section
         .equipment-select
           +if("group.parentGroup")
             IconSelect.mb-md.icon-select(
-              options="{equipmentByType[group.selectedItem.type] || []}"
+              options="{equipmentByType[equipmentCacheKey(group.selectedItem)] || []}"
               active="{group.parentGroup.granularSelections?.children?.[group.id === group.parentGroup.id ? group.selectedItem._id : group.id]?.selections?.[0]}"
               placeHolder="{t('Equipment.SelectType')} {group.selectedItem.type}"
               handler="{createSelectionHandler(group.id === group.parentGroup.id ? group.selectedItem._id : group.id, group.parentGroup)}"
@@ -261,7 +269,7 @@ section
             +each("Array.from({length: getRequiredSelectionsCount(group.selectedItem)}) as _, index")
               +if("!group.granularSelections?.self?.[index]")
                 IconSelect.mb-md.icon-select(
-                  options="{equipmentByType[group.selectedItem.type] || []}"
+                  options="{equipmentByType[equipmentCacheKey(group.selectedItem)] || []}"
                   active="{group.granularSelections?.self?.[index]}"
                   placeHolder="{t('Equipment.SelectType')} {group.selectedItem.type} #{index + 1}"
                   handler="{createSelectionHandler(group.id, null, index)}"
