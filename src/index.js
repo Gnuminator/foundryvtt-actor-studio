@@ -225,7 +225,7 @@ Hooks.on('closeApplication', (app) => {
 Hooks.on('renderActorSheetV2', (app, html) => addResumeBanner(app, html));
 Hooks.on('renderActorSheetV2', (app, html) => addSubclassBanner(app, html));
 Hooks.on('createItem', (item) => {
-  if (item?.type === 'subclass' && item.parent?.documentName === 'Actor') clearPendingSubclassIfDone(item.parent);
+  if (item?.type === 'subclass' && item.parent?.documentName === 'Actor' && item.parent.isOwner) clearPendingSubclassIfDone(item.parent);
 });
 Hooks.on('gas.close', () => noteStudioClosed());
 Hooks.on('activateActorDirectory', async (app) => {

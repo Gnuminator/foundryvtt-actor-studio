@@ -14,9 +14,11 @@ const STUDIO_ROOT_ID = 'foundryvtt-actor-studio-pc-sheet';
 export async function savePendingSubclass(actor, subclassDoc) {
   try {
     if (!actor?.setFlag || !subclassDoc?.uuid) return false;
+    if (actor.getFlag?.(MODULE_ID, PENDING_SUBCLASS_FLAG)?.uuid === subclassDoc.uuid) return true;
     await actor.setFlag(MODULE_ID, PENDING_SUBCLASS_FLAG, {
       uuid: subclassDoc.uuid,
       name: subclassDoc.name ?? '',
+      classIdentifier: subclassDoc.system?.classIdentifier ?? null,
       userId: game.user?.id ?? null,
       savedAt: Date.now()
     });
@@ -32,6 +34,8 @@ export function hasPendingSubclassItem(actor, pending) {
   if (!actor?.items || !pending) return false;
   return actor.items.some((item) => {
     if (item?.type !== 'subclass') return false;
+    // any subclass of the same class counts: a GM may have added a different one
+    if (pending.classIdentifier && item.system?.classIdentifier === pending.classIdentifier) return true;
     const sources = [item?._stats?.compendiumSource, item?.flags?.core?.sourceId, item?.flags?.[MODULE_ID]?.sourceUuid];
     return sources.includes(pending.uuid) || (!!pending.name && item.name === pending.name);
   });
@@ -143,7 +147,16 @@ export function addSubclassBanner(app, html) {
       ev.preventDefault();
       await recoverSubclass(actor.id);
     });
-    bar.append(text, button);
+    const dismiss = document.createElement('button');
+    dismiss.type = 'button';
+    dismiss.textContent = 'Dismiss';
+    dismiss.title = 'Remove this reminder without adding the subclass';
+    dismiss.style.cssText = 'width:auto;flex:none;';
+    dismiss.addEventListener('click', async (ev) => {
+      ev.preventDefault();
+      try { await actor.unsetFlag(MODULE_ID, PENDING_SUBCLASS_FLAG); } catch (error) { window.GAS?.log?.w?.('[SUBCLASS GUARD] dismiss failed', error); }
+    });
+    bar.append(text, button, dismiss);
     host.prepend(bar);
   } catch (error) {
     window.GAS?.log?.w?.('[SUBCLASS GUARD] banner failed', error);

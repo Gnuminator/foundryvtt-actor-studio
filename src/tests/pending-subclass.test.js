@@ -73,3 +73,16 @@ describe('clearPendingSubclassIfDone', () => {
     expect(missing.unsetFlag).not.toHaveBeenCalled();
   });
 });
+
+describe('a different subclass of the same class', () => {
+  it('counts as done, so the banner cannot get stuck', async () => {
+    const actor = fakeActor({ flag: { uuid: CHAMPION.uuid, name: 'Champion', classIdentifier: 'fighter' }, items: [{ type: 'subclass', name: 'Battle Master', system: { classIdentifier: 'fighter' } }] });
+    expect(getPendingSubclass(actor)).toBeNull();
+  });
+
+  it('does not rewrite an unchanged flag', async () => {
+    const actor = fakeActor({ flag: { uuid: CHAMPION.uuid, name: 'Champion' } });
+    await savePendingSubclass(actor, CHAMPION);
+    expect(actor.setFlag).not.toHaveBeenCalled();
+  });
+});
