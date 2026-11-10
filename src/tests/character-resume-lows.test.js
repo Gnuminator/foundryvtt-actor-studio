@@ -73,7 +73,7 @@ beforeEach(() => {
   global.fromUuid = vi.fn();
 });
 
-afterEach(() => { vi.useRealTimers(); });
+afterEach(() => { vi.useRealTimers(); delete global.foundry; });
 
 describe('L1: the flag stays while advancement windows are open', () => {
   it('clears at once when nothing is open', async () => {
@@ -281,6 +281,15 @@ describe('review fixes', () => {
     expect(advancementsStillOpen('a1')).toBe(false);
     expect(advancementsStillOpen('other')).toBe(true);
     expect(advancementsStillOpen()).toBe(true);
-    delete global.foundry;
+  });
+
+  it('a hidden (display:none or hidden) advancement window of the same actor does not hold the flag', () => {
+    const instances = new Map([['w1', { actor: { id: 'a1' } }], ['w2', { actor: { id: 'a1' } }]]);
+    global.foundry = { applications: { instances } };
+    global.document.querySelectorAll = () => [{ id: 'w1', style: { display: 'none' } }];
+    expect(advancementsStillOpen('a1')).toBe(false);
+    expect(advancementsStillOpen()).toBe(false);
+    global.document.querySelectorAll = () => [{ id: 'w1', hidden: true }, { id: 'w2', style: { display: 'block' } }];
+    expect(advancementsStillOpen('a1')).toBe(true);
   });
 });
