@@ -4,7 +4,7 @@ import { TJSDocument } from "@typhonjs-fvtt/runtime/svelte/store/fvtt/document";
 import { MODULE_ID, MODULE_CODE } from "~/src/helpers/constants"
 import { safeGetSetting, getPhbVersion, localize } from '~/src/helpers/Utility';
 import { shouldWarnOnEquipmentClose } from '~/src/helpers/equipmentCloseWarning';
-import { activeTab, actorInGame, isAdvancementInProgress, readOnlyTabs } from "~/src/stores/index";
+import { activeTab, actorInGame, isAdvancementInProgress, isLevelUp, readOnlyTabs } from "~/src/stores/index";
 import { progress } from "~/src/stores/progress";
 import { get } from 'svelte/store';
 import { version } from "../../module.json";
@@ -101,7 +101,9 @@ export default class PCApplication extends SvelteApplication {
       if (get(isAdvancementInProgress)) {
         const confirmed = await Dialog.confirm({
           title: 'Close',
-          content: 'Are you sure you want to close? If you have incomplete advancements, they will be lost.',
+          content: get(isLevelUp)
+            ? 'Are you sure you want to close? The new level is already on the character, but unfinished steps (such as the subclass and its features) are not. You can add the subclass afterwards from the bar on the character sheet.'
+            : 'Are you sure you want to close? If you have incomplete advancements, they will be lost.',
           yes: () => true,
           no: () => false,
           defaultYes: false
