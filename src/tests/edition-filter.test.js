@@ -91,3 +91,22 @@ describe('hideSupersededItems', () => {
     expect(hideSupersededItems(null)).toBeNull();
   });
 });
+
+describe('Ebbe (Grave cleric) picks stay offered', () => {
+  it('keeps Grave Domain next to 2024 domains and the 2024 Forest Gnome', () => {
+    const subclasses = [
+      mk('Grave Domain', 'grave', '2014', 'world.player-subclasses'),
+      mk('Life Domain', 'life', '2024', 'world.player-subclasses'),
+      mk('Life Domain', 'life', '2014', 'world.player-subclasses'),
+      mk('Light Domain', 'light', '2024', 'world.player-subclasses')
+    ];
+    expect(labels(hideSupersededItems(subclasses))).toEqual(['Grave Domain', 'Life Domain', 'Light Domain']);
+    const species = [mk('Forest Gnome', 'forest-gnome', '2014'), mk('Gnome, Forest', 'gnome-forest', '2024')];
+    expect(labels(hideSupersededItems(species))).toEqual(['Gnome, Forest']);
+  });
+
+  it('never hides anything when no entry carries rules 2024', () => {
+    const items = [mk('Shield', 'shield', '2014'), mk('Shield', 'shield', undefined), mk('Mind Sliver', 'mind-sliver', '')];
+    expect(hideSupersededItems(items)).toEqual(items);
+  });
+});
