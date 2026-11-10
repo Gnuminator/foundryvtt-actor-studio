@@ -142,3 +142,53 @@ export const confirmCharacterName = async (name, userName = globalThis.game?.use
     return true;
   }
 };
+
+const BACKGROUND_NOTE = ' (already given by your background)';
+
+/** Skill keys ("skills:ins") that the background item grants outright. */
+export const backgroundSkillGrants = (backgroundItem) => {
+  try {
+    const advancements = backgroundItem?.advancement?.byType?.Trait;
+    const list = advancements ? [...advancements] : [];
+    return new Set(
+      list.flatMap((advancement) => [...(advancement?.configuration?.grants ?? [])]).filter((g) => String(g).startsWith('skills:'))
+    );
+  } catch (e) {
+    return new Set();
+  }
+};
+
+/**
+ * Mark the skills the background already gives in a species skill step, so a player does not pick one twice and
+ * lose it. Works on the option list and on the chosen slots; safe to call repeatedly.
+ */
+export const markBackgroundSkills = (element, backgroundItem) => {
+  const root = element?.[0] ?? element;
+  const grants = backgroundSkillGrants(backgroundItem);
+  if (!root?.querySelectorAll || !grants.size) return 0;
+  let marked = 0;
+  for (const option of root.querySelectorAll('option')) {
+    if (grants.has(option.value) && !option.textContent.includes(BACKGROUND_NOTE)) {
+      option.textContent += BACKGROUND_NOTE;
+      marked += 1;
+    }
+  }
+  for (const slot of root.querySelectorAll('li[data-key]')) {
+    const title = slot.querySelector('.title');
+    if (grants.has(slot.dataset.key) && title && !title.textContent.includes(BACKGROUND_NOTE)) {
+      title.textContent += BACKGROUND_NOTE;
+      marked += 1;
+    }
+  }
+  return marked;
+};
+
+/** Keep the marks up to date while the step re-renders. */
+export const watchBackgroundSkills = (element, getBackground) => {
+  const root = element?.[0] ?? element;
+  if (!root?.addEventListener || typeof MutationObserver === 'undefined' || root.dataset?.gasSkillMarks) return;
+  root.dataset.gasSkillMarks = '1';
+  const run = () => markBackgroundSkills(root, getBackground());
+  run();
+  new MutationObserver(run).observe(root, { childList: true, subtree: true });
+};

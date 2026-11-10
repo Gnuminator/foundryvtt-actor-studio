@@ -101,3 +101,24 @@ describe('guardChoiceButtons', () => {
     expect(root.press().stopImmediatePropagation).not.toHaveBeenCalled();
   });
 });
+
+describe('markBackgroundSkills', () => {
+  const background = { advancement: { byType: { Trait: [{ configuration: { grants: new Set(['skills:ins', 'tool:thief']) } }] } } };
+  const el = (value) => ({ value, textContent: value, dataset: { key: value } });
+
+  it('reads the skills a background grants', async () => {
+    const { backgroundSkillGrants } = await import('~/src/helpers/ChoiceGuard');
+    expect([...backgroundSkillGrants(background)]).toEqual(['skills:ins']);
+    expect(backgroundSkillGrants(null).size).toBe(0);
+  });
+
+  it('marks a granted skill once and leaves others alone', async () => {
+    const { markBackgroundSkills } = await import('~/src/helpers/ChoiceGuard');
+    const options = [el('skills:ins'), el('skills:ath')];
+    const root = { querySelectorAll: (sel) => (sel === 'option' ? options : []) };
+    expect(markBackgroundSkills(root, background)).toBe(1);
+    expect(markBackgroundSkills(root, background)).toBe(0);
+    expect(options[0].textContent).toContain('already given by your background');
+    expect(options[1].textContent).toBe('skills:ath');
+  });
+});
