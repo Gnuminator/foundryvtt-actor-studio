@@ -34,6 +34,7 @@
     tabDisabled,
     getCoreCreationReadOnlyTabs
   } from "~/src/stores/index";
+  import { confirmCharacterName } from "~/src/helpers/ChoiceGuard";
   import { progress } from "~/src/stores/progress";
   import { flattenedSelections } from "~/src/stores/equipmentSelections";
   import { flattenedStartingEquipment } from "~/src/stores/startingEquipment";
@@ -211,6 +212,7 @@
   };
   //- Create Actor
   const clickCreateHandler = async () => {
+    if (!(await confirmCharacterName($actor?.name))) return;
     // Initialize workflow state machine for character creation
     const fsm = getWorkflowFSM();
     const currentState = fsm.getCurrentState?.();

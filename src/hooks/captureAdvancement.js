@@ -2,6 +2,7 @@ import { get } from 'svelte/store';
 import { MODULE_ID } from '~/src/helpers/constants';
 import { safeGetSetting, getPacksFromSettings } from '~/src/helpers/Utility';
 import { isSpellChoiceAdvancement } from '~/src/helpers/spellChoice';
+import { guardChoiceButtons } from '~/src/helpers/ChoiceGuard';
 import { watchSpellAbility, spellcastingAbilityFrom } from '~/src/helpers/spellAbilityCarry';
 import SpellChoiceSelector from '~/src/components/molecules/dnd5e/Spells/SpellChoiceSelector.svelte';
 import { applyAppTheme, resolveFoundryTheme } from '~/src/helpers/syncAppThemeFromFoundryBody';
@@ -1151,6 +1152,8 @@ export const captureAdvancement = (initial = false) => {
         forceTakeAverageHitPoints(element, currentProcess);
 
         carrySpellAbility(element, currentProcess);
+
+        guardChoiceButtons(element);
       } else {
         window.GAS.log.w('[gas.captureAdvancement] No element found from getAdvancementElement');
       }
