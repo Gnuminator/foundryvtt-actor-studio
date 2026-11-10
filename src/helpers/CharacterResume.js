@@ -57,10 +57,20 @@ export async function clearPendingCreation(actor) {
   }
 }
 
-/** True while a dnd5e advancement window is still on the page (it is removed from the DOM when it closes). */
+/** A window element that is in the DOM but not shown (hidden attribute or display:none); a stale one holds nothing open. */
+function isHiddenElement(el) {
+  try {
+    //- checkVisibility covers display:none on the element or any ancestor, the hidden attribute and a detached element
+    if (typeof el?.checkVisibility === 'function') return el.checkVisibility() === false;
+    return el?.hidden === true || el?.style?.display === 'none';
+  } catch (error) { return false; }
+}
+
+/** True while a visible dnd5e advancement window is still on the page (it is removed from the DOM when it closes). */
 export function advancementsStillOpen(actorId = null) {
   try {
-    const els = [...(document.querySelectorAll?.('.application.dnd5e2.advancement.manager') ?? [])];
+    const els = [...(document.querySelectorAll?.('.application.dnd5e2.advancement.manager') ?? [])]
+      .filter((el) => !isHiddenElement(el));
     if (!actorId) return els.length > 0;
     const instances = globalThis.foundry?.applications?.instances;
     //- a window of another actor does not hold this actor's flag; one we cannot place counts as open
