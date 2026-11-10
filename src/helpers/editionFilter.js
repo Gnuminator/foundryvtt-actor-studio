@@ -37,7 +37,8 @@ export function nameKey(name) {
 
 const rulesOf = (item) => String(item?.system?.source?.rules ?? '');
 const identifierOf = (item) => String(item?.system?.identifier ?? '');
-const nameOf = (item) => item?.label ?? item?.name ?? '';
+// rawLabel is the name before label cleaning: a cleaned "Aasimar (MotM)" must not equal the 2024 "Aasimar"
+const nameOf = (item) => item?.rawLabel ?? item?.label ?? item?.name ?? '';
 const packOf = (item) => item?.packId ?? item?.packName ?? '';
 
 /**

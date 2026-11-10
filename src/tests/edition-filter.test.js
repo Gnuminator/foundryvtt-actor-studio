@@ -118,3 +118,13 @@ describe('requireName (feats)', () => {
     expect(labels(hideSupersededItems(items))).toEqual(['Magic Initiate (Wizard)']);
   });
 });
+
+describe('cleaned labels (M4)', () => {
+  it('does not match a 2014 entry through a cleaned label that equals a 2024 name', () => {
+    const items = [
+      { label: 'Aasimar', rawLabel: 'Aasimar (MotM)', system: { identifier: 'aasimar-motm', source: { rules: '2014' } }, packId: 'p' },
+      { label: 'Aasimar', rawLabel: 'Aasimar', system: { identifier: 'aasimar', source: { rules: '2024' } }, packId: 'p' }
+    ];
+    expect(hideSupersededItems(items)).toEqual(items);
+  });
+});

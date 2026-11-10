@@ -513,6 +513,7 @@ export function extractItemsFromPacksSync(packs, keys) {
 
     packItems = packItems.map(item => ({
       ...item,
+      rawLabel: item.label, // aitool: the uncleaned name; the edition filter matches on it
       label: cleanLabel(item.label),
       compoundLabel: `[${pack.metadata.label}] ${cleanLabel(item.label)}`,
       labelCleaned: true, // aitool: SelectOptionLabel must not strip ', Lineage' again
