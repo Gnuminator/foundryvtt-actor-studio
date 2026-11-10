@@ -65,7 +65,17 @@ Then:
 
 A GitHub release on the fork (tag `<version>`, for example `2.10.6-aitool.1`) is what makes the
 `manifest` and `download` URLs in `module.json` work. Creating tags and releases needs the owner's OK.
-The workflow in `.github/workflows/main.yml` builds `module.zip` on a published release.
+No workflow runs on the fork: `.github/workflows/main.yml` is upstream's and nothing builds
+`module.zip` when a release is published. Build it by hand (the `aitool.9` to `aitool.11` releases were):
+
+1. Build the module (`npm run build`) and use the finished module folder, as the test kit installs it.
+2. Zip files only (no directory entries), in sorted path order, with forward-slash paths, so the zip
+   is the same each time. Each entry has `create_system` 0 and `external_attr` `0x81b60000`
+   (a regular file, mode 0666). The Pi stage 13 refuses other path styles and special entries.
+3. `module.json` and `module.zip` are the release assets. Upload both with
+   `gh release create <version> module.json module.zip -R Gnuminator/foundryvtt-actor-studio`
+   (or `gh release upload <version> ... --clobber` on an existing release; needs the owner's OK).
+4. Note the zip's sha256: the AI Tool's stage 13 pins it.
 
 ## Things to re-check after each upstream release
 
