@@ -110,3 +110,11 @@ describe('Ebbe (Grave cleric) picks stay offered', () => {
     expect(hideSupersededItems(items)).toEqual(items);
   });
 });
+
+describe('requireName (feats)', () => {
+  it('keeps a 2014 feat whose identifier matches a 2024 feat of another name', () => {
+    const items = [mk('Magic Initiate', 'magic-initiate', '2014', 'p'), mk('Magic Initiate (Wizard)', 'magic-initiate', '2024', 'p')];
+    expect(hideSupersededItems(items, { requireName: true })).toEqual(items);
+    expect(labels(hideSupersededItems(items))).toEqual(['Magic Initiate (Wizard)']);
+  });
+});

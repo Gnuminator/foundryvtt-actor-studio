@@ -43,10 +43,10 @@ const packOf = (item) => item?.packId ?? item?.packName ?? '';
 /**
  * Drop 2014 entries that a 2024 entry in the same pack supersedes.
  * @param {Array} items picker items carrying `system.identifier` and `system.source.rules`
- * @param {{pairs?: Record<string,string[]>}} [options]
+ * @param {{pairs?: Record<string,string[]>, requireName?: boolean}} [options] requireName: an identifier match also needs the same name (feats)
  * @returns {Array} the items to show, order kept
  */
-export function hideSupersededItems(items, { pairs = EXPLICIT_PAIRS } = {}) {
+export function hideSupersededItems(items, { pairs = EXPLICIT_PAIRS, requireName = false } = {}) {
   if (!Array.isArray(items) || items.length < 2) return items;
 
   const current = new Map(); // pack -> { ids: Set, names: Set } of 2024 entries
@@ -70,7 +70,7 @@ export function hideSupersededItems(items, { pairs = EXPLICIT_PAIRS } = {}) {
     if (rulesOf(item) !== '2014') return true;
     const twins = current.get(pack);
     if (!twins) return true;
-    if (id && twins.ids.has(id)) return false;
+    if (id && twins.ids.has(id) && (!requireName || twins.names.has(nameKey(nameOf(item))))) return false;
     return !twins.names.has(nameKey(nameOf(item)));
   });
 }

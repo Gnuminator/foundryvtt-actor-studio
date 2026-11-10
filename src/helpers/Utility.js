@@ -2126,7 +2126,7 @@ export async function getFilteredFeats() {
 
     // Filter for feats only
     // aitool: a 2014 feat is hidden when a 2024 feat of the same identifier or name is in the pack
-    const feats = hideSupersededItems(lightweightItems.filter(item => item.type === "feat"));
+    const feats = hideSupersededItems(lightweightItems.filter(item => item.type === "feat"), { requireName: true });
 
     window.GAS.log.d(`[getFilteredFeats] Loaded ${feats.length} feats from ${packs.length} packs`);
     return feats;
