@@ -90,6 +90,7 @@ describe('guardChoiceButtons', () => {
     await vi.waitFor(() => expect(confirm).toHaveBeenCalled());
     expect(button.click).not.toHaveBeenCalled();
 
+    await new Promise((r) => setTimeout(r, 0)); // let the first box finish
     confirm.mockResolvedValue(true);
     root.press();
     await vi.waitFor(() => expect(button.click).toHaveBeenCalledTimes(1));
