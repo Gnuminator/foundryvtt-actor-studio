@@ -292,4 +292,12 @@ describe('review fixes', () => {
     global.document.querySelectorAll = () => [{ id: 'w1', hidden: true }, { id: 'w2', style: { display: 'block' } }];
     expect(advancementsStillOpen('a1')).toBe(true);
   });
+
+  it('uses checkVisibility when the browser has it (a hidden ancestor counts); a minimized window stays open', () => {
+    global.foundry = { applications: { instances: new Map([['w1', { actor: { id: 'a1' } }]]) } };
+    global.document.querySelectorAll = () => [{ id: 'w1', checkVisibility: () => false }];
+    expect(advancementsStillOpen('a1')).toBe(false);
+    global.document.querySelectorAll = () => [{ id: 'w1', checkVisibility: () => true, classList: { contains: () => true } }];
+    expect(advancementsStillOpen('a1')).toBe(true);
+  });
 });

@@ -60,9 +60,9 @@ export async function clearPendingCreation(actor) {
 /** A window element that is in the DOM but not shown (hidden attribute or display:none); a stale one holds nothing open. */
 function isHiddenElement(el) {
   try {
-    if (el?.hidden === true || el?.style?.display === 'none') return true;
-    const view = globalThis.getComputedStyle;
-    return typeof view === 'function' && !!el?.nodeType && view(el)?.display === 'none';
+    //- checkVisibility covers display:none on the element or any ancestor, the hidden attribute and a detached element
+    if (typeof el?.checkVisibility === 'function') return el.checkVisibility() === false;
+    return el?.hidden === true || el?.style?.display === 'none';
   } catch (error) { return false; }
 }
 
