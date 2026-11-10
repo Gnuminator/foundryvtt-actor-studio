@@ -6,6 +6,7 @@ import { compatibleStartingEquipment } from '~/src/stores/startingEquipment';
 import { goldRoll } from '~/src/stores/storeDefinitions';
 import { preAdvancementSelections, actorInGame, isLevelUp } from '~/src/stores/index';
 import { clearPendingCreationWhenIdle } from '~/src/helpers/CharacterResume';
+import { savePendingSubclass, clearPendingSubclassIfDone } from '~/src/helpers/PendingSubclass';
 import { getWorkflowFSM, WORKFLOW_EVENTS } from '~/src/helpers/WorkflowStateMachine';
 import { getTestTimeouts } from '~/src/helpers/testTimeouts';
 
@@ -367,6 +368,8 @@ export class AdvancementManager {
     this.inProcessStore.set(false);
     //- every queued item is done: the character is no longer resumable (no-op without the flag)
     if (currentActor && !get(isLevelUp)) clearPendingCreationWhenIdle(currentActor);
+    //- the queue ran to its end: a pending subclass that is on the actor now is no longer pending
+    if (currentActor) clearPendingSubclassIfDone(currentActor);
   }
 
   /**
@@ -405,6 +408,9 @@ export class AdvancementManager {
   async advanceQueue() {
     window.GAS.log.d('[ADVANCEMENT MANAGER] advancing queue of length', get(this.store).length);
     try {
+      //- level-up with a subclass still to come: remember it on the actor in case the window is closed first
+      const queuedSub = get(this.store).find(q => q.id === 'characterSubClass' && q.isLevelUp);
+      if (queuedSub?.actor && queuedSub.itemData?.uuid) await savePendingSubclass(queuedSub.actor, queuedSub.itemData);
       // Process all items in the queue
       while (get(this.store).length > 0) {
         const currentStore = get(this.store);
