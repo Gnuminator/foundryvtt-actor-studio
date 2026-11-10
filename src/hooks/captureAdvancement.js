@@ -1,6 +1,6 @@
 import { get } from 'svelte/store';
 import { MODULE_ID } from '~/src/helpers/constants';
-import { safeGetSetting, getPacksFromSettings } from '~/src/helpers/Utility';
+import { safeGetSetting, getPacksFromSettings, isAdvancementAutomationEnabled } from '~/src/helpers/Utility';
 import { isSpellChoiceAdvancement } from '~/src/helpers/spellChoice';
 import { guardChoiceButtons, watchBackgroundSkills } from '~/src/helpers/ChoiceGuard';
 import { watchSpellAbility, spellcastingAbilityFrom } from '~/src/helpers/spellAbilityCarry';
@@ -1153,7 +1153,7 @@ export const captureAdvancement = (initial = false) => {
 
         carrySpellAbility(element, currentProcess);
 
-        guardChoiceButtons(element);
+        guardChoiceButtons(element, () => !!isAdvancementAutomationEnabled());
         watchBackgroundSkills(element, () => get(background));
       } else {
         window.GAS.log.w('[gas.captureAdvancement] No element found from getAdvancementElement');

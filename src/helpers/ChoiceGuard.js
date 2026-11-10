@@ -33,7 +33,7 @@ export const patternFor = (template) => {
   const source = escapeRegex(template)
     .replace(/\\\{(\w+)\\\}/g, (_, name) => {
       names.push(name);
-      return name === 'type' ? '[^\\n]*?' : '(\\d+)';
+      return name === 'type' ? '[^\\n]*' :'(\\d+)';
     })
     .replace(/\s+/g, '\\s+');
   return { regex: new RegExp(source, 'gi'), names: names.filter((n) => n !== 'type') };
@@ -89,22 +89,38 @@ const askToContinue = async (counters) => {
  * Watch Next and Complete in a captured advancement window.
  * The click is stopped in the capture phase while a counter is open; "Continue anyway" replays it once.
  */
-export const guardChoiceButtons = (element) => {
+export const guardChoiceButtons = (element, isAutomated = () => false) => {
   const root = element?.[0] ?? element;
   if (!root || root.dataset?.gasChoiceGuard) return;
   root.dataset.gasChoiceGuard = '1';
   let override = false;
+  let asking = false;
   root.addEventListener('click', async (event) => {
     const button = event.target?.closest?.('button[data-action="next"], button[data-action="complete"]');
     if (!button || override) return;
+    // automated advancement (a setting) clicks Next itself and must never wait for a dialog
+    if (isAutomated()) return;
+    if (asking) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
     const counters = findOpenCounters(root.innerText ?? root.textContent);
     if (!counters.length) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    if (await askToContinue(counters)) {
+    asking = true;
+    let go = false;
+    try {
+      go = await askToContinue(counters);
+    } finally {
+      asking = false;
+    }
+    if (go) {
       override = true;
       try {
-        button.click();
+        // the window may have re-rendered while the box was open: click the live button
+        (root.querySelector?.(`button[data-action="${button.dataset?.action}"]`) ?? button).click();
       } finally {
         override = false;
       }
@@ -175,8 +191,14 @@ export const markBackgroundSkills = (element, backgroundItem) => {
   }
   for (const slot of root.querySelectorAll('li[data-key]')) {
     const title = slot.querySelector('.title');
-    if (grants.has(slot.dataset.key) && title && !title.textContent.includes(BACKGROUND_NOTE)) {
-      title.textContent += BACKGROUND_NOTE;
+    if (grants.has(slot.dataset.key) && title && !title.textContent.includes(BACKGROUND_NOTE.trim())) {
+      const note = globalThis.document?.createElement?.('span');
+      if (note) {
+        note.textContent = BACKGROUND_NOTE;
+        title.append(note);
+      } else {
+        title.textContent += BACKGROUND_NOTE;
+      }
       marked += 1;
     }
   }

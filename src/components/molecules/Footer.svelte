@@ -211,8 +211,17 @@
     $actor.flags[MODULE_ID].tokenName = e.target.value;
   };
   //- Create Actor
+  let confirmingName = false;
   const clickCreateHandler = async () => {
-    if (!(await confirmCharacterName($actor?.name))) return;
+    if (confirmingName) return;
+    confirmingName = true;
+    let nameOk = true;
+    try {
+      nameOk = await confirmCharacterName($actor?.name);
+    } finally {
+      confirmingName = false;
+    }
+    if (!nameOk) return;
     // Initialize workflow state machine for character creation
     const fsm = getWorkflowFSM();
     const currentState = fsm.getCurrentState?.();

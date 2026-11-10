@@ -122,3 +122,35 @@ describe('markBackgroundSkills', () => {
     expect(options[1].textContent).toBe('skills:ath');
   });
 });
+
+describe('guardChoiceButtons races', () => {
+  it('a second click while the box is open opens no second box', async () => {
+    let resolve;
+    const confirm = vi.fn(() => new Promise((r) => { resolve = r; }));
+    globalThis.foundry = { applications: { api: { DialogV2: { confirm } } } };
+    const handlers = [];
+    const button = { click: vi.fn(), dataset: { action: 'next' } };
+    const root = {
+      dataset: {},
+      innerText: 'Chosen: 0 of 1',
+      addEventListener: (_t, fn) => handlers.push(fn),
+      querySelector: () => button
+    };
+    guardChoiceButtons(root);
+    const press = () => handlers.forEach((fn) => fn({ target: { closest: () => button }, preventDefault() {}, stopImmediatePropagation() {} }));
+    press();
+    press();
+    expect(confirm).toHaveBeenCalledTimes(1);
+    resolve(true);
+    await vi.waitFor(() => expect(button.click).toHaveBeenCalledTimes(1));
+  });
+
+  it('stays out of the way during automated advancement', () => {
+    const handlers = [];
+    const root = { dataset: {}, innerText: 'Chosen: 0 of 1', addEventListener: (_t, fn) => handlers.push(fn) };
+    guardChoiceButtons(root, () => true);
+    const stop = vi.fn();
+    handlers.forEach((fn) => fn({ target: { closest: () => ({}) }, preventDefault() {}, stopImmediatePropagation: stop }));
+    expect(stop).not.toHaveBeenCalled();
+  });
+});
