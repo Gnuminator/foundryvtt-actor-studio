@@ -15,6 +15,7 @@ import {
   safeGetSetting
 } from "~/src/helpers/Utility";
 import { savePendingCreation } from "~/src/helpers/CharacterResume";
+import { claimAsPlayerCharacter } from "~/src/helpers/claimCharacter";
 import { destroyAdvancementManagers } from "~/src/helpers/AdvancementManager";
 import { goldRoll } from '../stores/storeDefinitions';
 import { totalGoldFromChoices } from '../stores/goldChoices';
@@ -94,7 +95,10 @@ export async function createActorInGameAndEmbedItems({
   // Create Actor
   const createdActor = await Actor.create(get(actor).toObject());
   actorInGame.set(createdActor);
-  
+
+  // Fork: a player without a character gets this one (never overrides one that is set)
+  await claimAsPlayerCharacter(createdActor);
+
   // Set the actor in the workflow FSM context
   workflowFSMContext.actor = createdActor;
 
