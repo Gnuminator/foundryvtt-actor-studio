@@ -36,6 +36,7 @@ import {
   getAdvancementEntryCount
 } from "~/src/helpers/Utility.js";
 
+import { hideSupersededItems } from "~/src/helpers/editionFilter";
 import StandardTabLayout from "~/src/components/organisms/StandardTabLayout.svelte";
 import IconSelect from "./../../../molecules/select/IconSelect.svelte";
 import ClassLevelRow from "~/src/plugins/level-up/ClassLevelRow.svelte";
@@ -106,7 +107,7 @@ const filters = {
     let mappedSubClassIndex = await extractItemsFromPacksAsync(
       subClassesPacks,
       ["name->label", "img", "type", "folder", "uuid->value", "_id"],
-      ["system.classIdentifier"],
+      ["system.classIdentifier", "system.identifier", "system.source.rules"],
     );
     window.GAS.log.d('[DEBUG] mappedSubClassIndex before filtering:', mappedSubClassIndex);
     window.GAS.log.d('[DEBUG] levelUpClassObject:', $levelUpClassObject);
@@ -118,7 +119,8 @@ const filters = {
       return matches;
     });
 
-    const output = mappedSubClassIndex
+    // aitool: after the class filter, so identifiers are only compared within one class
+    const output = hideSupersededItems(mappedSubClassIndex)
       .flat()
       .sort((a, b) => a.label.localeCompare(b.label));
     window.GAS.log.d('[DEBUG] Final filtered subclasses:', output);

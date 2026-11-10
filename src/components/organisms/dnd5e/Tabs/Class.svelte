@@ -25,6 +25,7 @@
     readOnlyTabs,
   } from "~/src/stores/index";
   import { localize as t} from "~/src/helpers/Utility";
+  import { hideSupersededItems } from "~/src/helpers/editionFilter";
   import { TJSSelect } from "@typhonjs-fvtt/standard/component/form";
   import { MODULE_ID } from "~/src/helpers/constants";
   import DonationTracker from "~/src/plugins/donation-tracker";
@@ -117,12 +118,14 @@
     let mappedSubClassIndex = await extractItemsFromPacksAsync(
       subClassesPacks,
       ["name->label", "img", "type", "folder", "uuid->value", "_id"],
-      ["system.classIdentifier"],
+      ["system.classIdentifier", "system.identifier", "system.source.rules"],
     );
 
     mappedSubClassIndex = mappedSubClassIndex.filter((x) => {
       return x.system?.classIdentifier == $characterClass?.system?.identifier;
     });
+    // aitool: after the class filter, so identifiers are only compared within one class
+    mappedSubClassIndex = hideSupersededItems(mappedSubClassIndex);
 
     const output = mappedSubClassIndex
       .flat()

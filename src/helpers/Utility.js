@@ -3,6 +3,7 @@ import DTPlugin from "~/src/plugins/donation-tracker";
 import { get } from "svelte/store";
 import { tick } from "svelte";
 import { filterSpellChoices, resolveMagicInitiateList } from "~/src/helpers/spellChoice";
+import { hideSupersededItems } from "~/src/helpers/editionFilter";
 
 /**
  * Converts various collection types into a standard array
@@ -644,8 +645,10 @@ export async function extractItemsFromPacksAsync(packs, keys, nonIndexKeys = fal
   // window.GAS.log.d('nonIndexKeys', nonIndexKeys);
   for (const pack of packs) {
 
+    // aitool: dnd5e already indexes "system.source" whole; asking for a path inside it as well makes
+    // Foundry's index merge throw ("Cannot use 'in' operator"), so those paths are only extracted
     let index = await pack.getIndex({
-      fields: nonIndexKeys,
+      fields: (nonIndexKeys || []).filter((k) => !k.startsWith('system.source.')),
     });
 
     if (!pack) continue;
@@ -2058,7 +2061,7 @@ export async function getFilteredSpellChoices(flow, options = {}) {
     if (!packs || packs.length === 0) return [];
 
     const indexKeys = ["_id", "name", "img", "type", "uuid"];
-    const nonIndexKeys = ["system.level", "system.school", "system.identifier"];
+    const nonIndexKeys = ["system.level", "system.school", "system.identifier", "system.source.rules"];
     const items = await extractItemsFromPacksAsync(packs, indexKeys, nonIndexKeys);
 
     const chosenUuids = Array.from(flow?.selected?.keys?.() ?? []);
@@ -2070,14 +2073,15 @@ export async function getFilteredSpellChoices(flow, options = {}) {
 
     const listOverride = resolveMagicInitiateList(flow, options.fallbackBackground ?? null);
 
-    return filterSpellChoices(items, {
+    // aitool: hide a 2014 spell only when its 2024 twin is in the narrowed list too
+    return hideSupersededItems(filterSpellChoices(items, {
       config: flow?.advancement?.configuration,
       maxSlot: flow?._maxSpellSlotLevel?.() ?? 9,
       registry: globalThis.dnd5e?.registry?.spellLists ?? null,
       chosenUuids,
       chosenKeys,
       listOverride
-    });
+    }));
   } catch (error) {
     window.GAS.log.e('[getFilteredSpellChoices] Error loading spells:', error);
     return [];
@@ -2112,14 +2116,17 @@ export async function getFilteredFeats() {
       "system.prerequisites.level",
       "system.prerequisites.abilities",
       "system.prerequisites.features",
-      "system.description.value"
+      "system.description.value",
+      "system.identifier",
+      "system.source.rules"
     ];
 
     // Extract feat data using extractItemsFromPacksAsync
     let lightweightItems = await extractItemsFromPacksAsync(packs, indexKeys, nonIndexKeys);
 
     // Filter for feats only
-    const feats = lightweightItems.filter(item => item.type === "feat");
+    // aitool: a 2014 feat is hidden when a 2024 feat of the same identifier or name is in the pack
+    const feats = hideSupersededItems(lightweightItems.filter(item => item.type === "feat"));
 
     window.GAS.log.d(`[getFilteredFeats] Loaded ${feats.length} feats from ${packs.length} packs`);
     return feats;

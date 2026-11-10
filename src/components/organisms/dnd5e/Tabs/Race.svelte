@@ -15,6 +15,7 @@
     getDndRulesVersion
   } from "~/src/helpers/Utility.js";
   import { safeGetSetting } from '~/src/helpers/Utility';
+  import { hideSupersededItems } from "~/src/helpers/editionFilter";
   import { getContext, onDestroy, onMount, tick } from "svelte";
   import { localize as t } from "~/src/helpers/Utility";
   import { race, subRace, tabDisabled, level, readOnlyTabs } from "~/src/stores/index";
@@ -46,13 +47,15 @@
     "folder",
     "uuid->value",
     "_id",
+    "system.identifier",
+    "system.source.rules",
   ]);
   const showPackLabelInSelect = safeGetSetting(MODULE_ID, 'showPackLabelInSelect', true);
   const importPath = "components/molecules/dnd5e/Advancements/";
 
   // window.GAS.log.d('allRaceItems', allRaceItems)
-  let raceDefinitions = allRaceItems
-    .filter((x) => x.type == "race")
+  // aitool: hide a 2014 species when a 2024 one with the same identifier or name is in the pack
+  let raceDefinitions = hideSupersededItems(allRaceItems.filter((x) => x.type == "race"))
     .sort((a, b) => a.label.localeCompare(showPackLabelInSelect ? b.compoundLabel : b.label));
 
   const actor = getContext("#doc");
