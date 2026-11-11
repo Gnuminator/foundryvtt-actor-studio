@@ -697,6 +697,8 @@ export function createLevelUpStateMachine() {
       .on('error').transitionTo('idle')
       .onEnter((context) => {
         if (levelUpFSMContext.isProcessing) levelUpFSMContext.isProcessing.set(false);
+        // aitool fix: a level up that ended any way but completion must not leave its snapshot for the next one
+        levelUpFSMContext.hitPointsBefore = null;
         
         // Destroy advancement managers when returning to idle
         try {
@@ -988,6 +990,7 @@ export function createLevelUpStateMachine() {
       .on('reset').transitionTo('idle')
       .onEnter((context) => {
         if (levelUpFSMContext.isProcessing) levelUpFSMContext.isProcessing.set(false);
+        levelUpFSMContext.hitPointsBefore = null;
         const lastFailureMessage = levelUpFSMContext.lastFailure?.message || null;
         window.GAS.log.e('[LEVELUP] Entered ERROR state:', {
           contextError: context?.error,

@@ -10,13 +10,14 @@
 
 /**
  * @param {Actor} actor
- * @returns {{value: number, max: number} | null}
+ * @returns {{value: number, max: number} | null}  max includes tempmax
  */
 export function snapshotHitPoints(actor) {
   const hp = actor?.system?.attributes?.hp;
   if (!hp) return null;
   const value = Number(hp.value);
-  const max = Number(hp.max);
+  // dnd5e keeps a temporary maximum change (tempmax) beside max; the real ceiling is both together
+  const max = Number(hp.max) + (Number(hp.tempmax) || 0);
   if (!Number.isFinite(value) || !Number.isFinite(max)) return null;
   return { value, max };
 }
