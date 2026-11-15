@@ -96,14 +96,14 @@ export async function createActorInGameAndEmbedItems({
   const createdActor = await Actor.create(get(actor).toObject());
   actorInGame.set(createdActor);
 
-  // Fork: a player without a character gets this one (never overrides one that is set)
-  await claimAsPlayerCharacter(createdActor);
-
   // Set the actor in the workflow FSM context
   workflowFSMContext.actor = createdActor;
 
   // Remember the picks on the actor so an interrupted build can be resumed (cleared when the queue ends)
   await savePendingCreation(createdActor, stores);
+
+  // Fork: a player without a character gets this one (never overrides one that is set); after the resume flag is saved
+  await claimAsPlayerCharacter(createdActor);
 
   queueCreationItems({ createdActor, stores, dropItemRegistry });
   return createdActor;

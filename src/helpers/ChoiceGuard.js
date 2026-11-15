@@ -205,12 +205,18 @@ export const markBackgroundSkills = (element, backgroundItem) => {
   return marked;
 };
 
-/** Keep the marks up to date while the step re-renders. */
-export const watchBackgroundSkills = (element, getBackground) => {
+/**
+ * Keep the marks up to date while the step re-renders.
+ * @param {() => boolean} [isBackgroundWindow] true in the background's own advancement window, where the note makes no sense
+ */
+export const watchBackgroundSkills = (element, getBackground, isBackgroundWindow = () => false) => {
   const root = element?.[0] ?? element;
   if (!root?.addEventListener || typeof MutationObserver === 'undefined' || root.dataset?.gasSkillMarks) return;
   root.dataset.gasSkillMarks = '1';
-  const run = () => markBackgroundSkills(root, getBackground());
+  const run = () => {
+    try { if (isBackgroundWindow()) return 0; } catch (e) { /* mark anyway */ }
+    return markBackgroundSkills(root, getBackground());
+  };
   run();
   new MutationObserver(run).observe(root, { childList: true, subtree: true });
 };

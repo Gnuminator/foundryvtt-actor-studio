@@ -14,11 +14,14 @@ const STUDIO_ROOT_ID = 'foundryvtt-actor-studio-pc-sheet';
 export async function savePendingSubclass(actor, subclassDoc) {
   try {
     if (!actor?.setFlag || !subclassDoc?.uuid) return false;
-    if (actor.getFlag?.(MODULE_ID, PENDING_SUBCLASS_FLAG)?.uuid === subclassDoc.uuid) return true;
+    const existing = actor.getFlag?.(MODULE_ID, PENDING_SUBCLASS_FLAG);
+    const classIdentifier = subclassDoc.system?.classIdentifier ?? null;
+    // an unchanged flag is not rewritten, but one from before classIdentifier existed is upgraded
+    if (existing?.uuid === subclassDoc.uuid && (existing.classIdentifier || !classIdentifier)) return true;
     await actor.setFlag(MODULE_ID, PENDING_SUBCLASS_FLAG, {
       uuid: subclassDoc.uuid,
       name: subclassDoc.name ?? '',
-      classIdentifier: subclassDoc.system?.classIdentifier ?? null,
+      classIdentifier,
       userId: game.user?.id ?? null,
       savedAt: Date.now()
     });

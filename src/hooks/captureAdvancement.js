@@ -1154,7 +1154,8 @@ export const captureAdvancement = (initial = false) => {
         carrySpellAbility(element, currentProcess);
 
         guardChoiceButtons(element, () => !!isAdvancementAutomationEnabled());
-        watchBackgroundSkills(element, () => get(background));
+        // the note belongs in the species window, not in the background's own
+        watchBackgroundSkills(element, () => get(background), () => currentProcess?.app?.step?.flow?.advancement?.item?.type === 'background');
       } else {
         window.GAS.log.w('[gas.captureAdvancement] No element found from getAdvancementElement');
       }
