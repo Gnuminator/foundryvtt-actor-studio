@@ -467,6 +467,19 @@
       }
       if (!currentActorInGame) {
         window.GAS?.log?.d?.('[FOOTER] Creating deferred actor before completing biography');
+        // The Biography tab can still carry the player's own name: ask once, as Create Character does
+        if (confirmingName) return;
+        confirmingName = true;
+        let nameOk = true;
+        try {
+          const bioName = get(biographyContent)?.name;
+          nameOk = await confirmCharacterName((bioName && bioName.trim()) || $actor?.name);
+        } catch (e) {
+          nameOk = true;
+        } finally {
+          confirmingName = false;
+        }
+        if (!nameOk) return;
         await createActorWorkflow({
           actor,
           stores: storeRefs,

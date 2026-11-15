@@ -69,3 +69,52 @@ describe('level up state machine: hitPointsBefore lifecycle', () => {
     expect(levelUpFSMContext.hitPointsBefore).toBeNull();
   });
 });
+
+describe('level up state machine: completed handler restores full hit points', () => {
+  async function drive({ clearDuringFill = false } = {}) {
+    vi.doMock('~/src/helpers/AdvancementManager', () => ({
+      destroyAdvancementManagers: vi.fn(),
+      AdvancementManager: class {}
+    }));
+    let ctx;
+    vi.doMock('~/src/helpers/fillSpellSlots', () => ({
+      // a reset reaching idle while the slots fill nulls the snapshot (PR 14 L1)
+      fillSpellSlots: vi.fn(async () => { if (clearDuringFill) ctx.hitPointsBefore = null; })
+    }));
+    const closed = new Promise((resolve) => { global.Hooks = { call: vi.fn(resolve) }; });
+    global.game = { actors: { get: () => null }, modules: { get: () => null }, settings: { get: () => undefined } };
+    const { createLevelUpStateMachine, levelUpFSMContext } = await import('~/src/helpers/LevelUpStateMachine.js');
+    ctx = levelUpFSMContext;
+    const { dropItemRegistry } = await import('~/src/stores/index');
+    dropItemRegistry.advanceQueue = vi.fn().mockResolvedValue(true);
+
+    // full hit points before (42 of 40 + 2 tempmax), a Constitution rise leaves current below the new maximum after the level up
+    const hp = { value: 42, max: 40, tempmax: 2 };
+    const actor = {
+      system: { attributes: { hp } },
+      update: vi.fn().mockResolvedValue(undefined),
+      getFlag: () => undefined,
+      sheet: { render: vi.fn().mockResolvedValue(undefined) }
+    };
+    ctx.actor = actor;
+    const fsm = createLevelUpStateMachine();
+    fsm.handle('start_level_up');
+    expect(ctx.hitPointsBefore).toEqual({ value: 42, max: 42 });
+    hp.max = 52; // new maximum after the level up, value unchanged
+    fsm.handle('class_level_selected');
+    await closed; // gas.close is the last step of the completed handler
+    return { actor, fsm, ctx };
+  }
+
+  it('reaches completed and sets the current hit points to the effective maximum (max + tempmax)', async () => {
+    const { actor, fsm, ctx } = await drive();
+    expect(fsm.getCurrentState()).toBe('completed');
+    expect(actor.update).toHaveBeenCalledWith({ 'system.attributes.hp.value': 54 });
+    expect(ctx.hitPointsBefore).toBeNull();
+  }, 10000);
+
+  it('still catches up when the snapshot is nulled during the slot fill (captured before the first await)', async () => {
+    const { actor } = await drive({ clearDuringFill: true });
+    expect(actor.update).toHaveBeenCalledWith({ 'system.attributes.hp.value': 54 });
+  }, 10000);
+});

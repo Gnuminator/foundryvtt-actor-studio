@@ -35,6 +35,20 @@ describe('savePendingSubclass', () => {
     expect(actor.setFlag).toHaveBeenCalledWith(MODULE, PENDING_SUBCLASS_FLAG, expect.objectContaining({ uuid: CHAMPION.uuid, name: 'Champion', userId: 'u1' }));
   });
 
+  it('does not rewrite an unchanged flag, but upgrades one from before classIdentifier existed', async () => {
+    const doc = { ...CHAMPION, system: { classIdentifier: 'fighter' } };
+    const current = fakeActor({ flag: { ...CHAMPION, classIdentifier: 'fighter' } });
+    expect(await savePendingSubclass(current, doc)).toBe(true);
+    expect(current.setFlag).not.toHaveBeenCalled();
+    const stale = fakeActor({ flag: { ...CHAMPION } }); // saved by an older build
+    expect(await savePendingSubclass(stale, doc)).toBe(true);
+    expect(stale.setFlag).toHaveBeenCalledWith(MODULE, PENDING_SUBCLASS_FLAG, expect.objectContaining({ uuid: CHAMPION.uuid, classIdentifier: 'fighter' }));
+    // a doc without a classIdentifier has nothing to add: no rewrite
+    const same = fakeActor({ flag: { ...CHAMPION } });
+    await savePendingSubclass(same, CHAMPION);
+    expect(same.setFlag).not.toHaveBeenCalled();
+  });
+
   it('does nothing without a subclass uuid, and never throws', async () => {
     expect(await savePendingSubclass(fakeActor(), { name: 'x' })).toBe(false);
     const broken = fakeActor();

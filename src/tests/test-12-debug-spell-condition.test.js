@@ -1,5 +1,9 @@
 import { vi, beforeEach, afterEach, describe, it, expect } from 'vitest';
 
+let stateMachinePromise;
+// one import for the whole file, made while the mocks below are registered
+const loadStateMachine = () => (stateMachinePromise ??= import('~/src/helpers/WorkflowStateMachine.js'));
+
 describe('Debug Shopping Spell Selection Condition', () => {
   let mockGame, mockActor, mockBardClass, mockGet;
 
@@ -55,7 +59,10 @@ describe('Debug Shopping Spell Selection Condition', () => {
       get: mockGet
     }));
 
-    vi.doMock('~/src/stores/storeDefinitions', () => ({ 
+    // Partial mock: other modules in the import graph (equipmentGold) read more stores from here, and which
+    // of them get loaded varies with timing in a full run (the flake was a missing export)
+    vi.doMock('~/src/stores/storeDefinitions', async (importOriginal) => ({
+      ...(await importOriginal()),
       actorInGame: mockWritable(mockActor)
     }));
 
@@ -80,18 +87,14 @@ describe('Debug Shopping Spell Selection Condition', () => {
 
   afterEach(() => {
     vi.resetAllMocks();
-    vi.doUnmock('svelte/store');
-    vi.doUnmock('~/src/stores/storeDefinitions');
-    vi.doUnmock('~/src/stores/index');
-    vi.doUnmock('~/src/stores/startingEquipment');
-    vi.doUnmock('~/src/lib/workflow.js');
-    vi.doUnmock('~/src/helpers/AdvancementManager');
-    vi.doUnmock('~/src/helpers/constants');
+    // The mocks stay registered (no doUnmock, no resetModules): the state machine is imported once and its
+    // import graph may still be loading lazily; unmocking between tests made the second test see real modules (the full-run flake)
   });
 
   it('should debug exactly what happens in the _shouldShowSpellSelection function', async () => {
-    const { workflowFSMContext } = await import('~/src/helpers/WorkflowStateMachine.js');
-    const { get } = await import('svelte/store');
+    const { workflowFSMContext } = await loadStateMachine();
+    // the mocked get itself: importing svelte/store here sometimes returned the real module in a full run (the flake)
+    const get = mockGet;
     const { actorInGame } = await import('~/src/stores/storeDefinitions');
 
     // Step 1: Check if enableSpellSelection is working
@@ -140,11 +143,12 @@ describe('Debug Shopping Spell Selection Condition', () => {
 
     // This should be true for a bard
     expect(shouldShow).toBe(true);
-  });
+  }, 20000); // the first import of the state machine is slow when the whole suite runs in parallel
 
   it('should test the exact condition as used in the shopping state', async () => {
-    const { workflowFSMContext } = await import('~/src/helpers/WorkflowStateMachine.js');
-    const { get } = await import('svelte/store');
+    const { workflowFSMContext } = await loadStateMachine();
+    // the mocked get itself: importing svelte/store here sometimes returned the real module in a full run (the flake)
+    const get = mockGet;
     const { actorInGame } = await import('~/src/stores/storeDefinitions');
 
     // This is the exact condition from the shopping state

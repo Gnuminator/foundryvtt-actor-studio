@@ -155,3 +155,42 @@ describe('guardChoiceButtons races', () => {
     expect(stop).not.toHaveBeenCalled();
   });
 });
+
+describe('watchBackgroundSkills in the background\'s own window', () => {
+  const background = { advancement: { byType: { Trait: [{ configuration: { grants: new Set(['skills:ins']) } }] } } };
+
+  const watch = async (isBackgroundWindow) => {
+    const { watchBackgroundSkills } = await import('~/src/helpers/ChoiceGuard');
+    const option = { value: 'skills:ins', textContent: 'Insight' };
+    const root = {
+      dataset: {},
+      addEventListener: () => {},
+      querySelectorAll: (sel) => (sel === 'option' ? [option] : [])
+    };
+    globalThis.MutationObserver = class { observe() {} };
+    watchBackgroundSkills(root, () => background, isBackgroundWindow);
+    return option;
+  };
+
+  it('marks the skill in a species window', async () => {
+    expect((await watch(() => false)).textContent).toContain('already given by your background');
+  });
+
+  it('adds no note in the background\'s own advancement window', async () => {
+    expect((await watch(() => true)).textContent).toBe('Insight');
+  });
+});
+
+describe('Biography-tab create path', () => {
+  it('runs the player-name check before creating the deferred actor', async () => {
+    const { readFileSync } = await import('node:fs');
+    const src = readFileSync('src/components/molecules/Footer.svelte', 'utf8');
+    const start = src.indexOf('async function handleCompleteBiography');
+    const body = src.slice(start, src.indexOf('Apply biography content to the created actor', start));
+    const check = body.indexOf('confirmCharacterName(');
+    const create = body.indexOf('createActorWorkflow(');
+    expect(check).toBeGreaterThan(-1);
+    expect(check).toBeLessThan(create);
+    expect(body).toContain('if (!nameOk) return;');
+  });
+});

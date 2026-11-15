@@ -40,6 +40,8 @@ describe('claimAsPlayerCharacter', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const user = fakeUser({ update: vi.fn().mockRejectedValue(new Error('denied')) });
     expect(await claimAsPlayerCharacter(actor, user)).toBe(false);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain('Could not set the player character');
     warn.mockRestore();
   });
 

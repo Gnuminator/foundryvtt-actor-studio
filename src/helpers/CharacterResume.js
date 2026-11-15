@@ -57,12 +57,26 @@ export async function clearPendingCreation(actor) {
   }
 }
 
-/** A window element that is in the DOM but not shown (hidden attribute or display:none); a stale one holds nothing open. */
+/** A window element that is in the DOM but not shown (display:none, visibility:hidden, hidden attribute or a hidden ancestor); a stale one holds nothing open. */
 function isHiddenElement(el) {
   try {
-    //- checkVisibility covers display:none on the element or any ancestor, the hidden attribute and a detached element
-    if (typeof el?.checkVisibility === 'function') return el.checkVisibility() === false;
-    return el?.hidden === true || el?.style?.display === 'none';
+    //- checkVisibility covers display:none on the element or any ancestor, a detached element and (with the options) visibility:hidden;
+    //- it reads the computed style, so a hidden attribute that CSS overrides counts as shown
+    if (typeof el?.checkVisibility === 'function') {
+      return el.checkVisibility({ visibilityProperty: true, checkVisibilityCSS: true }) === false;
+    }
+    if (el?.isConnected === false) return true;
+    //- no checkVisibility: use the computed style when there is one (a CSS-overridden hidden attribute stays shown)
+    if (typeof globalThis.getComputedStyle === 'function' && typeof el?.nodeType === 'number') {
+      const own = globalThis.getComputedStyle(el);
+      if (own.visibility === 'hidden' || own.visibility === 'collapse') return true;
+      //- display is not inherited: a display:none ancestor hides the window too
+      for (let node = el; node && node.nodeType === 1; node = node.parentElement) {
+        if (globalThis.getComputedStyle(node).display === 'none') return true;
+      }
+      return false;
+    }
+    return el?.hidden === true || el?.style?.display === 'none' || el?.style?.visibility === 'hidden';
   } catch (error) { return false; }
 }
 

@@ -911,6 +911,8 @@ export function createLevelUpStateMachine() {
         suppressTidy5eAutoReopen(false);
         
         const actor = levelUpFSMContext.actor || get(actorInGame);
+        // Read the snapshot before the first await: a reset reaching idle meanwhile would null it
+        const hitPointsBefore = levelUpFSMContext.hitPointsBefore;
         if (actor) {
           // Open actor sheet on completion.
           (async () => {
@@ -926,7 +928,7 @@ export function createLevelUpStateMachine() {
 
             // aitool fix: a Constitution increase raises the maximum for every level but dnd5e adds only the new
             // level's hit points to the current value; bring a hero that was at full hit points back to full.
-            await catchUpHitPoints(refreshedActor, levelUpFSMContext.hitPointsBefore);
+            await catchUpHitPoints(refreshedActor, hitPointsBefore);
             levelUpFSMContext.hitPointsBefore = null;
 
             window.GAS.log.d(`[GAS_CLOSE_TRACE] [${closeTraceId}] LEVELUP_COMPLETED begin`, {
