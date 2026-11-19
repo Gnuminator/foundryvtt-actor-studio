@@ -19,6 +19,7 @@ Our commits on top of upstream 2.10.5 (one fix each, so a rebase conflict is eas
    test `src/tests/test-select-option-label.test.js`); added in 2.10.5-aitool.4
 8. Spell picker for spell ItemChoice steps (Magic Initiate and similar): `src/helpers/spellChoice.js`, `src/components/molecules/dnd5e/Spells/SpellChoiceSelector.svelte`, `interceptSpellBrowseButtons` in `src/hooks/captureAdvancement.js`, setting `enableSpellChoiceSelector` (default on), test `src/tests/test-spell-choice.test.js`; added in 2.10.5-aitool.5
 8b. Spell ability select starts on the class spellcasting ability (`src/helpers/spellAbilityCarry.js`, `src/hooks/captureAdvancement.js`, test `src/tests/test-spell-ability-carryover.test.js`); starting body armor and shield equipped after Confirm (`src/helpers/equipStartingArmor.js`, `src/lib/workflow.js`); Equipment tab hint under the progress bar and a close warning below 100% (`Footer.svelte`, `src/app/PCApplication.js`, lang `Footer.EquipmentHint`, `Footer.EquipmentCloseWarning`); added by L153
+8c. Abilities tab starts on a method: with two or more methods on (standard array and point buy) it opens on Standard Array (else the first method) instead of an empty tab (`src/components/organisms/dnd5e/Tabs/Abilities.svelte`); added for session 0, shipped in the next release after 2.10.5-aitool.13
 9. Fork version, URLs and README notes (`module.json`, `package.json`, `README.md`)
 10. Rebuilt tracked `dist/style.css`
 
