@@ -85,6 +85,14 @@
     $abilityGenerationMethod = options[0].value;
   }
 
+  // Fork (aitool): with several methods on, do not leave the tab empty until the player finds the drop-down:
+  // start on the Standard Array when it is on (the table's usual choice), else on the first method in the list.
+  $: if (options.length > 1 && !options.some(option => option.value === $abilityGenerationMethod)) {
+    const fallback = options.find(option => option.type === "StandardArray") ?? options[0];
+    active = fallback.value;
+    $abilityGenerationMethod = fallback.value;
+  }
+
   $: abilityModule = $abilityGenerationMethod ? advancementComponents[options.find(option => option.value === $abilityGenerationMethod).type] : null;
 
   onMount(async () => {
